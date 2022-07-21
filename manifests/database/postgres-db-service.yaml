@@ -8,6 +8,6 @@ spec:
   type: NodePort
   ports:
     - port: 5432
-  selector:                                         # Selects any Pod with labels `app=fullstack-postgres,tier=postgres`
+  selector:                                         # Selects any Pod with labels `services=fullstack-postgres,tier=postgres`
     app: kuber-hasher
     tier: postgres

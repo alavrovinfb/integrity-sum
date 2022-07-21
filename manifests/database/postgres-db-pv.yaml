@@ -13,4 +13,4 @@ spec:
     - ReadWriteMany
   hostPath:                                   # hostPath PersistentVolume is used for development and testing. It uses a file/directory on the Node to emulate network-attached storage
     path: "/mnt/data"
-  persistentVolumeReclaimPolicy: Retain       # Retain the PV even after PVC is deleted. 
+  persistentVolumeReclaimPolicy: Retain       # Retain the PV even after PVC is deleted.

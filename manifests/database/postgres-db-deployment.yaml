@@ -62,6 +62,3 @@ spec:
         - name: postgres-persistent-storage
           persistentVolumeClaim:
             claimName: hasher-postgres-pvc
-
-
-

@@ -65,7 +65,6 @@ eval $(minikube docker-env)
 docker build -t hasher .
 ```
 
-
 Apply hasher annotation:
 ```
 kubectl apply -f manifests/hasher/service-account-hasher.yaml
@@ -120,4 +119,4 @@ golangci-lint run
 ```
 
 ##License
-This project uses the MIT software license. See [full license file](https://github.com/ScienceSoft-Inc/k8s-container-integrity-monitor/blob/main/LICENSE)
+This project uses the MIT software license. See [full license file](https://github.com/ScienceSoft-Inc/integrity-sum/blob/main/LICENSE)
