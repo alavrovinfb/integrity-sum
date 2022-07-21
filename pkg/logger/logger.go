@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -40,11 +39,6 @@ type formatter struct {
 func (f *formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	var sb bytes.Buffer
 
-	var newLine = "\n"
-	if runtime.GOOS == "linux" {
-		newLine = "\r\n"
-	}
-
 	sb.WriteString(strings.ToUpper(entry.Level.String()) + " " + entry.Time.Format(time.RFC3339) + " " + f.prefix + " " + entry.Message + " ")
 	file, ok := entry.Data["file"].(string)
 	if ok {
@@ -58,7 +52,7 @@ func (f *formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	if ok {
 		sb.WriteString(" " + "func:" + function)
 	}
-	sb.WriteString(newLine)
+	sb.WriteString("\n")
 
 	return sb.Bytes(), nil
 }
