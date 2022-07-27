@@ -33,6 +33,10 @@ integrity-sum injects a `hasher-sidecar` to your pods as a sidecar container.
 $ git clone https://github.com/ScienceSoft-Inc/integrity-sum.git
 $ cd path/to/install
 ```
+Download the named modules into the module cache
+```
+go mod download
+```
 ### Running locally
 The code only works running inside a pod in Kubernetes
 You need to have a Kubernetes cluster, and the kubectl command-line tool must be configured to communicate with your cluster.

@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-//go:generate mockgen -source=service_ports.go -destination=mocks/mock_service.go
+//go:generate mockgen -source=service.go -destination=mocks/mock_service.go
 
 type IAppService interface {
 	GetPID(configData *models.ConfigMapData) (int, error)

@@ -41,8 +41,10 @@ func Result(ctx context.Context, results chan *HashData, c chan os.Signal) []*Ha
 			allHashData = append(allHashData, hashData)
 		case <-c:
 			fmt.Println("exit program")
-			return []*HashData{}
+			return nil
 		case <-ctx.Done():
+			fmt.Println("program termination after receiving a signal")
+			return nil
 		}
 	}
 }

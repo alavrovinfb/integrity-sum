@@ -5,7 +5,7 @@ import (
 	"github.com/integrity-sum/pkg/api"
 )
 
-//go:generate mockgen -source=repository_ports.go -destination=mocks/mock_repository.go
+//go:generate mockgen -source=repository.go -destination=mocks/mock_repository.go
 
 type IAppRepository interface {
 	IsExistDeploymentNameInDB(deploymentName string) (bool, error)

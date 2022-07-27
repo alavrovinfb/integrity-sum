@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/integrity-sum/internal/configs"
 	logConfig "github.com/integrity-sum/pkg/logger"
 	"log"
 	"os"
@@ -16,6 +17,9 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Print("No .env file found")
 	}
+
+	// Checking database connection values
+	configs.ValidateDBConnectionValues()
 
 	// Initialize config for logger
 	logger, err := logConfig.LoadConfig()

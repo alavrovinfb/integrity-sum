@@ -131,10 +131,11 @@ func (ks *KuberService) GetDataFromDeployment(kuberData *models.KuberData) (*mod
 		return nil, err
 	}
 
-	deploymentData := models.DeploymentData{}
-	deploymentData.NameDeployment = kuberData.TargetName
-	deploymentData.Timestamp = fmt.Sprintf("%v", allDeploymentData.CreationTimestamp)
-	deploymentData.NamePod = os.Getenv("POD_NAME")
+	deploymentData := &models.DeploymentData{
+		NamePod:        os.Getenv("POD_NAME"),
+		Timestamp:      fmt.Sprintf("%v", allDeploymentData.CreationTimestamp),
+		NameDeployment: kuberData.TargetName,
+	}
 
 	for _, v := range allDeploymentData.Spec.Template.Spec.Containers {
 		deploymentData.Image = v.Image
@@ -146,7 +147,7 @@ func (ks *KuberService) GetDataFromDeployment(kuberData *models.KuberData) (*mod
 		}
 	}
 
-	return &deploymentData, nil
+	return deploymentData, nil
 }
 
 func (ks *KuberService) RolloutDeployment(kuberData *models.KuberData) error {
