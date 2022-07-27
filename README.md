@@ -1,16 +1,16 @@
 # integrity-sum
-![GitHub contributors](https://img.shields.io/github/contributors/ScienceSoft-Inc/k8s-container-integrity-monitor)
-![GitHub last commit](https://img.shields.io/github/last-commit/ScienceSoft-Inc/k8s-container-integrity-monitor)
-![GitHub](https://img.shields.io/github/license/ScienceSoft-Inc/k8s-container-integrity-monitor)
-![GitHub issues](https://img.shields.io/github/issues/ScienceSoft-Inc/k8s-container-integrity-monitor)
-![GitHub forks](https://img.shields.io/github/forks/ScienceSoft-Inc/k8s-container-integrity-monitor)
+[![GitHub contributors](https://img.shields.io/github/contributors/ScienceSoft-Inc/integrity-sum)](https://github.com/ScienceSoft-Inc/integrity-sum)
+[![GitHub last commit](https://img.shields.io/github/last-commit/ScienceSoft-Inc/integrity-sum)](https://github.com/ScienceSoft-Inc/integrity-sum)
+[![GitHub](https://img.shields.io/github/license/ScienceSoft-Inc/integrity-sum)](https://github.com/ScienceSoft-Inc/integrity-sum/blob/main/LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/ScienceSoft-Inc/integrity-sum)](https://github.com/ScienceSoft-Inc/integrity-sum/issues)
+[![GitHub forks](https://img.shields.io/github/forks/ScienceSoft-Inc/integrity-sum)](https://github.com/ScienceSoft-Inc/integrity-sum/network/members)
 
 ![Go](https://img.shields.io/badge/go-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/kubernetes-%23326ce5.svg?style=for-the-badge&logo=kubernetes&logoColor=white)
 ![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
 ![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)
 
-This program provides integrity monitoring that checks file or   directory of container to determine whether or not they have been tampered with or corrupted.  
+This program provides integrity monitoring that checks file or directory of container to determine whether or not they have been tampered with or corrupted.  
 integrity-sum, which is a type of change auditing, verifies and validates these files by comparing them to the stored data in the database.
 
 If program detects that files have been altered, updated, added or compromised, it rolls back deployments to a previous version.
@@ -25,6 +25,9 @@ integrity-sum injects a `hasher-sidecar` to your pods as a sidecar container.
 * SHA512
 
 ## Architecture
+
+### Statechart diagram
+![File location: docs/diagrams/integrityStatechartDiagram.png](/docs/diagrams/integrityStatechartDiagram.png?raw=true "Statechart diagram")
 
 ## Getting Started
 
@@ -91,12 +94,12 @@ If you want to use a hasher-sidecar, then you need to specify the following data
 Sometimes you may find that pod is injected with sidecar container as expected, check the following items:
 
 1) The pod is in running state with `hasher-sidecar` sidecar container injected and no error logs.
-2) Check if the application pod has he correct labels `hasher-webhook-injector-sidecar: "true"` and installed `hasher-webhook-process-name`.
+2) Check if the application pod has he correct labels `main-process-name`.
 ___________________________
 ### :notebook_with_decorative_cover: Godoc extracts and generates documentation for Go programs
 #### Presents the documentation as a web page.
 ```go
-godoc -http=:6060/sha256sum
+godoc -http=:6060/integritySum
 go doc packge.function_name
 ```
 for example
@@ -116,7 +119,10 @@ for example
 cd ../pkg/api
 go test -v
 ```
-
+or
+```
+go test -v ./...
+```
 ### :mag: Running linter "golangci-lint"
 ```
 golangci-lint run

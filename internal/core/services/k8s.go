@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -69,7 +68,7 @@ func (ks *KuberService) ConnectionToK8sAPI() (*models.KuberData, error) {
 		return nil, err
 	}
 
-	namespaceBytes, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	namespaceBytes, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		ks.logger.Error(err)
 		return nil, err
