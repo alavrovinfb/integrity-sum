@@ -32,6 +32,6 @@ type IKuberService interface {
 	GetDataFromK8sAPI() (*models.DataFromK8sAPI, error)
 	ConnectionToK8sAPI() (*models.KuberData, error)
 	GetDataFromDeployment(kuberData *models.KuberData) (*models.DeploymentData, error)
-	GetDataFromConfigMap(kuberData *models.KuberData, label string) (*models.ConfigMapData, error)
+	GetDataFromConfigMap(kuberData *models.KuberData, deploymentData *models.DeploymentData) (*models.ConfigMapData, error)
 	RolloutDeployment(kuberData *models.KuberData) error
 }

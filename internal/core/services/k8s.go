@@ -38,7 +38,7 @@ func (ks *KuberService) GetDataFromK8sAPI() (*models.DataFromK8sAPI, error) {
 		return nil, err
 	}
 
-	configData, err := ks.GetDataFromConfigMap(kuberData, deploymentData.LabelMainProcessName)
+	configData, err := ks.GetDataFromConfigMap(kuberData, deploymentData)
 	if err != nil {
 		ks.logger.Error("err while getting data from configMap K8sAPI %s", err)
 		return &models.DataFromK8sAPI{}, err
@@ -94,17 +94,16 @@ func (ks *KuberService) ConnectionToK8sAPI() (*models.KuberData, error) {
 	}
 	return kuberData, nil
 }
-func (ks *KuberService) GetDataFromConfigMap(kuberData *models.KuberData, label string) (*models.ConfigMapData, error) {
-	cm, err := kuberData.Clientset.CoreV1().ConfigMaps(kuberData.Namespace).Get(context.Background(), os.Getenv("CONFIG_MAP_NAME_FOR_HASHER"), metav1.GetOptions{})
+func (ks *KuberService) GetDataFromConfigMap(kuberData *models.KuberData, deploymentData *models.DeploymentData) (*models.ConfigMapData, error) {
+	cm, err := kuberData.Clientset.CoreV1().ConfigMaps(kuberData.Namespace).Get(context.Background(), deploymentData.ReleaseName+"-"+os.Getenv("CONFIG_MAP_NAME_FOR_HASHER"), metav1.GetOptions{})
 	if err != nil {
 		ks.logger.Error("err while getting data from configMap kuberAPI ", err)
 		return nil, err
 	}
-
 	var configMapData models.ConfigMapData
 	valuesEnv := make(map[string]string)
 	for key, value := range cm.Data {
-		if key == label {
+		if key == deploymentData.LabelMainProcessName {
 			envs := strings.Split(strings.TrimSpace(value), "\n")
 			for _, subStr := range envs {
 				valuesEnvs := strings.Split(strings.TrimSpace(subStr), "=")
@@ -119,7 +118,6 @@ func (ks *KuberService) GetDataFromConfigMap(kuberData *models.KuberData, label 
 	if value, ok := valuesEnv["MOUNT_PATH"]; ok {
 		configMapData.MountPath = value
 	}
-
 	return &configMapData, err
 }
 
@@ -144,6 +142,10 @@ func (ks *KuberService) GetDataFromDeployment(kuberData *models.KuberData) (*mod
 		if label == os.Getenv("MAIN_PROCESS_NAME") {
 			deploymentData.LabelMainProcessName = value
 		}
+	}
+
+	if value, ok := allDeploymentData.Annotations["meta.helm.sh/release-name"]; ok {
+		deploymentData.ReleaseName = value
 	}
 
 	return deploymentData, nil

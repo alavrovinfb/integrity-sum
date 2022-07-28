@@ -37,6 +37,7 @@ type DeploymentData struct {
 	Timestamp            string
 	NameDeployment       string
 	LabelMainProcessName string
+	ReleaseName          string
 }
 
 type ConfigMapData struct {

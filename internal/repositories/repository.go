@@ -20,7 +20,7 @@ func NewAppRepository(logger *logrus.Logger) *AppRepository {
 	}
 }
 
-//CheckIsEmptyDB checks if the base is empty
+// CheckIsEmptyDB checks if the base is empty
 func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, error) {
 	db, err := ConnectionToDB(ar.logger)
 	if err != nil {

@@ -52,19 +52,6 @@ To work properly, you first need to set the configuration files:
 + config in file `manifests/hasher/configMap.yaml`
 + secret for database `manifests/database/postgres-secret.yaml`
 
-
-## :hammer: Installing components
-
-### Installation DATABASE
-Apply all annotations in directory "manifests/db/..":
-```
-kubectl apply -f manifests/database/postgres-db-pv.yaml
-kubectl apply -f manifests/database/postgres-db-pvc.yaml
-kubectl apply -f manifests/database/postgres-secret.yaml
-kubectl apply -f manifests/database/postgres-db-deployment.yaml
-kubectl apply -f manifests/database/postgres-db-service.yaml
-```
-
 ## Quick start
 Build docker images hasher:
 ```
@@ -72,22 +59,28 @@ eval $(minikube docker-env)
 docker build -t hasher .
 ```
 
-Apply hasher annotation:
-```
-kubectl apply -f manifests/hasher/service-account-hasher.yaml
-kubectl apply -f manifests/hasher/configMap.yaml
-```
+## :hammer: Installing components
+### Install Helm
+Before using helm charts you need to install helm on your local machine.  
+You can find the necessary installation information at this link https://helm.sh/docs/intro/install/
 
-See examples in manifests/hasher directory for how to add the `hasher-sidecar` sidecar-container to any pod, and the service account needed.
-For example there is manifests/hasher/test-deployment.yaml DEPLOYMENT files:
+Then update the on-disk dependencies to mirror Chart.yaml.
 ```
-kubectl apply -f manifests/hasher/test-deployment.yaml
+helm dependency update helm-charts/database-to-integrity-sum
+```
+Install helm chart with database
+```
+helm install db helm-charts/database-to-integrity-sum
+```
+Install helm chart with app
+```
+helm install app helm-charts/app-to-monitor
 ```
 
 ##Pay attention!
 If you want to use a hasher-sidecar, then you need to specify the following data in your deployment:
 + `main-process-name: "your main process name"`
-+ `template:spec:serviceAccountName: hasher` 
++ `template:spec:serviceAccountName:` api-version-`hasher` 
 + `template:shareProcessNamespace: true` 
 
 ## Troubleshooting
