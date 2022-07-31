@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -40,14 +39,14 @@ func NewAppService(r *repositories.AppRepository, algorithm string, logger *logr
 	}, nil
 }
 
-//GetPID getting pid by process name
+// GetPID getting pid by process name
 func (as *AppService) GetPID(configData *models.ConfigMapData) (int, error) {
 	if os.Chdir(os.Getenv("PROC_DIR")) != nil {
 		as.logger.Error("/proc unavailable")
 		return 0, errors.New("error changing the current working directory to the named directory")
 	}
 
-	files, err := ioutil.ReadDir(".")
+	files, err := os.ReadDir(".")
 	if err != nil {
 		as.logger.Error("unable to read /proc directory")
 		return 0, err
@@ -86,7 +85,7 @@ func (as *AppService) GetPID(configData *models.ConfigMapData) (int, error) {
 	return pid, nil
 }
 
-//LaunchHasher takes a path to a directory and returns HashData
+// LaunchHasher takes a path to a directory and returns HashData
 func (as *AppService) LaunchHasher(ctx context.Context, dirPath string, sig chan os.Signal) []*api.HashData {
 	jobs := make(chan string)
 	results := make(chan *api.HashData)
@@ -97,7 +96,7 @@ func (as *AppService) LaunchHasher(ctx context.Context, dirPath string, sig chan
 	return allHashData
 }
 
-//IsExistDeploymentNameInDB checks if the database is empty
+// IsExistDeploymentNameInDB checks if the database is empty
 func (as *AppService) IsExistDeploymentNameInDB(deploymentName string) bool {
 	isEmptyDB, err := as.IAppRepository.IsExistDeploymentNameInDB(deploymentName)
 	if err != nil {

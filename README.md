@@ -49,8 +49,7 @@ Example https://minikube.sigs.k8s.io/docs/start/
 ### Configuration
 To work properly, you first need to set the configuration files:
 + environmental variables in the `.env` file
-+ config in file `manifests/hasher/configMap.yaml`
-+ secret for database `manifests/database/postgres-secret.yaml`
++ values in the file `helm-charts/values.yaml`
 
 ## Quick start
 Build docker images hasher:
@@ -66,18 +65,21 @@ You can find the necessary installation information at this link https://helm.sh
 
 Then update the on-disk dependencies to mirror Chart.yaml.
 ```
-helm dependency update helm-charts/database-to-integrity-sum
+helm dependency update helm-charts/
 ```
-Install helm chart with database
+This command installs a chart archive.
 ```
-helm install db helm-charts/database-to-integrity-sum
-```
-Install helm chart with app
-```
-helm install app helm-charts/app-to-monitor
+helm install `release name` `path to a packaged chart`
 ```
 
-##Pay attention!
+Install helm chart 
+
+for example
+```
+helm install app helm-charts/
+```
+
+## Pay attention!
 If you want to use a hasher-sidecar, then you need to specify the following data in your deployment:
 + `main-process-name: "your main process name"`
 + `template:spec:serviceAccountName:` api-version-`hasher` 
@@ -121,5 +123,5 @@ go test -v ./...
 golangci-lint run
 ```
 
-##License
+## License
 This project uses the MIT software license. See [full license file](https://github.com/ScienceSoft-Inc/integrity-sum/blob/main/LICENSE)

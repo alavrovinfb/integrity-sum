@@ -33,9 +33,8 @@ func (hr HashRepository) SaveHashData(allHashData []*api.HashData, deploymentDat
 		return err
 	}
 	query := fmt.Sprintf(`
-		INSERT INTO %s (file_name,full_file_path,hash_sum,algorithm,name_pod,image_tag,time_of_creation, name_deployment) 
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (full_file_path,algorithm) 
-		DO UPDATE SET hash_sum=EXCLUDED.hash_sum`, os.Getenv("TABLE_NAME"))
+		INSERT INTO %s (file_name,full_file_path,hash_sum,algorithm,name_pod,image_tag,time_of_creation, name_deployment)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8);`, os.Getenv("TABLE_NAME"))
 
 	for _, hash := range allHashData {
 		_, err = tx.Exec(query, hash.FileName, hash.FullFilePath, hash.Hash, hash.Algorithm, deploymentData.NamePod, deploymentData.Image, deploymentData.Timestamp, deploymentData.NameDeployment)
@@ -84,6 +83,7 @@ func (hr HashRepository) GetHashData(dirFiles, algorithm string, deploymentData 
 	return allHashDataFromDB, nil
 }
 
+// DeleteFromTable removes data from the table that matches the name of the deployment
 func (hr HashRepository) DeleteFromTable(nameDeployment string) error {
 	db, err := ConnectionToDB(hr.logger)
 	if err != nil {
