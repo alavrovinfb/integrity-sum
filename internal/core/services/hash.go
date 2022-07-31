@@ -1,7 +1,10 @@
 package services
 
 import (
+	"encoding/hex"
 	"fmt"
+	"hash"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,7 +21,7 @@ import (
 
 type HashService struct {
 	hashRepository ports.IHashRepository
-	hasher         hasher.IHasher
+	hasher         hash.Hash
 	alg            string
 	logger         *logrus.Logger
 }
@@ -76,8 +79,12 @@ func (hs HashService) CreateHash(path string) (*api.HashData, error) {
 	}
 	defer file.Close()
 
+	data, err := io.ReadAll(file)
+	if err != nil {
+		hs.logger.Error("error did not read the file", err)
+	}
 	outputHashSum := api.HashData{}
-	res, err := hs.hasher.Hash(file)
+	res := hex.EncodeToString(hs.hasher.Sum(data))
 	if err != nil {
 		hs.logger.Error("not got hash sum ", err)
 		return nil, err
@@ -101,13 +108,13 @@ func (hs HashService) SaveHashData(allHashData []*api.HashData, deploymentData *
 
 // GetHashData accesses the repository to get data from the database
 func (hs HashService) GetHashData(dirFiles string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error) {
-	hash, err := hs.hashRepository.GetHashData(dirFiles, hs.alg, deploymentData)
+	hashData, err := hs.hashRepository.GetHashData(dirFiles, hs.alg, deploymentData)
 	if err != nil {
-		hs.logger.Error("hash service didn't get hash sum", err)
+		hs.logger.Error("hashData service didn't get hashData sum", err)
 		return nil, err
 	}
 
-	return hash, nil
+	return hashData, nil
 }
 
 func (hs HashService) DeleteFromTable(nameDeployment string) error {
