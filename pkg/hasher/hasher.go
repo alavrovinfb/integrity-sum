@@ -8,8 +8,6 @@ import (
 	"hash"
 )
 
-//go:generate mockgen -source=hasher.go -destination=mocks/mock_hasher.go
-
 // NewHashSum takes a hashing algorithm as input and returns a hash sum with other data or an error
 func NewHashSum(alg string) (h hash.Hash, err error) {
 	switch alg {

@@ -127,14 +127,14 @@ func (hs HashService) DeleteFromTable(nameDeployment string) error {
 }
 
 // IsDataChanged checks if the current data has changed with the data stored in the database
-func (hs HashService) IsDataChanged(currentHashData []*api.HashData, hashDataFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) (bool, error) {
+func (hs HashService) IsDataChanged(currentHashData []*api.HashData, hashDataFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) bool {
 	isDataChanged := wasDataChanged(hashDataFromDB, currentHashData, deploymentData)
 	isAddedFiles := wasAddedFiles(currentHashData, hashDataFromDB)
 
 	if isDataChanged || isAddedFiles {
-		return true, nil
+		return true
 	}
-	return false, nil
+	return false
 }
 
 func wasDataChanged(hashSumFromDB []*models.HashDataFromDB, currentHashData []*api.HashData, deploymentData *models.DeploymentData) bool {

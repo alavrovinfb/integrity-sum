@@ -127,11 +127,7 @@ func (as *AppService) Check(ctx context.Context, dirPath string, sig chan os.Sig
 		return err
 	}
 
-	isDataChanged, err := as.IHashService.IsDataChanged(hashDataCurrentByDirPath, dataFromDBbyPodName, deploymentData)
-	if err != nil {
-		as.logger.Error("Error match data currently and data from database ", err)
-		return err
-	}
+	isDataChanged := as.IHashService.IsDataChanged(hashDataCurrentByDirPath, dataFromDBbyPodName, deploymentData)
 	if isDataChanged {
 		err := as.IHashService.DeleteFromTable(deploymentData.NameDeployment)
 		if err != nil {
