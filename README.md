@@ -25,12 +25,10 @@ integrity-sum injects a `hasher-sidecar` to your pods as a sidecar container.
 * SHA512
 
 ## Architecture
-
 ### Statechart diagram
 ![File location: docs/diagrams/integrityStatechartDiagram.png](/docs/diagrams/integrityStatechartDiagram.png?raw=true "Statechart diagram")
 
 ## Getting Started
-
 ### Clone repository and install dependencies
 ```
 $ git clone https://github.com/ScienceSoft-Inc/integrity-sum.git
@@ -40,11 +38,16 @@ Download the named modules into the module cache
 ```
 go mod download
 ```
+## :hammer: Installing components
 ### Running locally
-The code only works running inside a pod in Kubernetes
+The code only works running inside a pod in Kubernetes.
 You need to have a Kubernetes cluster, and the kubectl command-line tool must be configured to communicate with your cluster.
 If you do not already have a cluster, you can create one by using `minikube`.  
 Example https://minikube.sigs.k8s.io/docs/start/
+
+### Install Helm
+Before using helm charts you need to install helm on your local machine.  
+You can find the necessary installation information at this link https://helm.sh/docs/intro/install/
 
 ### Configuration
 To work properly, you first need to set the configuration files:
@@ -52,16 +55,30 @@ To work properly, you first need to set the configuration files:
 + values in the file `helm-charts/values.yaml`
 
 ## Quick start
+### Using Makefile
+You can use make function.  
+Runs all necessary cleaning targets and dependencies for the project:
+```
+make all
+```
+Remove an installed Helm deployment and stop minikube:
+```
+make stop
+```
+Building and running the project on a local machine:
+```
+make run
+```
+If you want to generate binaries for different platforms:
+```
+make compile
+```
+### Manual start
 Build docker images hasher:
 ```
 eval $(minikube docker-env)
 docker build -t hasher .
 ```
-
-## :hammer: Installing components
-### Install Helm
-Before using helm charts you need to install helm on your local machine.  
-You can find the necessary installation information at this link https://helm.sh/docs/intro/install/
 
 Then update the on-disk dependencies to mirror Chart.yaml.
 ```
@@ -72,8 +89,7 @@ This command installs a chart archive.
 helm install `release name` `path to a packaged chart`
 ```
 
-Install helm chart 
-
+Install helm chart  
 for example
 ```
 helm install app helm-charts/
@@ -91,7 +107,7 @@ Sometimes you may find that pod is injected with sidecar container as expected, 
 1) The pod is in running state with `hasher-sidecar` sidecar container injected and no error logs.
 2) Check if the application pod has he correct labels `main-process-name`.
 ___________________________
-### :notebook_with_decorative_cover: Godoc extracts and generates documentation for Go programs
+## :notebook_with_decorative_cover: Godoc extracts and generates documentation for Go programs
 #### Presents the documentation as a web page.
 ```go
 godoc -http=:6060/integritySum
@@ -102,7 +118,7 @@ for example
 go doc pkg/api.Result
 ```
 
-### :mag: Running tests
+## :mag: Running tests
 
 You need to go to the folder where the file is located *_test.go and run the following command:
 ```go
@@ -118,7 +134,7 @@ or
 ```
 go test -v ./...
 ```
-### :mag: Running linter "golangci-lint"
+## :mag: Running linter "golangci-lint"
 ```
 golangci-lint run
 ```
