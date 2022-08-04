@@ -19,10 +19,7 @@ func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) 
 	// Initialize service
 	algorithm := os.Getenv("ALGORITHM")
 
-	service, err := services.NewAppService(repository, algorithm, logger)
-	if err != nil {
-		logger.Fatalf("can't init service: %s", err)
-	}
+	service := services.NewAppService(repository, algorithm, logger)
 
 	// Initialize kubernetesAPI
 	dataFromK8sAPI, err := service.GetDataFromK8sAPI()

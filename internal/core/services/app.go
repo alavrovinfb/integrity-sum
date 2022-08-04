@@ -24,19 +24,16 @@ type AppService struct {
 }
 
 // NewAppService creates a new struct AppService
-func NewAppService(r *repositories.AppRepository, algorithm string, logger *logrus.Logger) (*AppService, error) {
+func NewAppService(r *repositories.AppRepository, algorithm string, logger *logrus.Logger) *AppService {
 	algorithm = strings.ToUpper(algorithm)
-	IHashService, err := NewHashService(r.IHashRepository, algorithm, logger)
-	if err != nil {
-		return nil, err
-	}
+	IHashService := NewHashService(r.IHashRepository, algorithm, logger)
 	kuberService := NewKuberService(logger)
 	return &AppService{
 		IHashService:   IHashService,
 		IAppRepository: r,
 		IKuberService:  kuberService,
 		logger:         logger,
-	}, nil
+	}
 }
 
 // GetPID getting pid by process name
@@ -105,7 +102,7 @@ func (as *AppService) IsExistDeploymentNameInDB(deploymentName string) bool {
 	return isEmptyDB
 }
 
-// StartGetHashData getting the hash sum of all files, outputs to os.Stdout and saves to the database
+// Start getting the hash sum of all files, outputs to os.Stdout and saves to the database
 func (as *AppService) Start(ctx context.Context, dirPath string, sig chan os.Signal, deploymentData *models.DeploymentData) error {
 	allHashData := as.LaunchHasher(ctx, dirPath, sig)
 	err := as.IHashService.SaveHashData(allHashData, deploymentData)
@@ -117,7 +114,7 @@ func (as *AppService) Start(ctx context.Context, dirPath string, sig chan os.Sig
 	return nil
 }
 
-// StartCheckHashData getting the hash sum of all files, matches them and outputs to os.Stdout changes
+// Check getting the hash sum of all files, matches them and outputs to os.Stdout changes
 func (as *AppService) Check(ctx context.Context, dirPath string, sig chan os.Signal, deploymentData *models.DeploymentData, kuberData *models.KuberData) error {
 	hashDataCurrentByDirPath := as.LaunchHasher(ctx, dirPath, sig)
 

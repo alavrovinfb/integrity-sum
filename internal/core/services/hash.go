@@ -3,7 +3,6 @@ package services
 import (
 	"encoding/hex"
 	"fmt"
-	"hash"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,29 +14,22 @@ import (
 	"github.com/integrity-sum/internal/core/ports"
 	"github.com/integrity-sum/pkg/api"
 	"github.com/integrity-sum/pkg/hasher"
-
 	"github.com/sirupsen/logrus"
 )
 
 type HashService struct {
 	hashRepository ports.IHashRepository
-	hasher         hash.Hash
 	alg            string
 	logger         *logrus.Logger
 }
 
 // NewHashService creates a new struct HashService
-func NewHashService(hashRepository ports.IHashRepository, alg string, logger *logrus.Logger) (*HashService, error) {
-	h, err := hasher.NewHashSum(alg)
-	if err != nil {
-		return nil, err
-	}
+func NewHashService(hashRepository ports.IHashRepository, alg string, logger *logrus.Logger) *HashService {
 	return &HashService{
 		hashRepository: hashRepository,
-		hasher:         h,
 		alg:            alg,
 		logger:         logger,
-	}, nil
+	}
 }
 
 // WorkerPool launches a certain number of workers for concurrent processing
@@ -65,7 +57,6 @@ func (hs HashService) Worker(wg *sync.WaitGroup, jobs <-chan string, results cha
 			hs.logger.Errorf("error creating file hash - %s, %s", j, err)
 			continue
 		}
-
 		results <- data
 	}
 }
@@ -74,25 +65,28 @@ func (hs HashService) Worker(wg *sync.WaitGroup, jobs <-chan string, results cha
 func (hs HashService) CreateHash(path string) (*api.HashData, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		hs.logger.Error("not exist file path ", err)
+		hs.logger.Errorf("can not open file %s %s", path, err)
 		return nil, err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			hs.logger.Errorf("[HashService]Error closing file: %s", err)
+		}
+	}(file)
 
-	data, err := io.ReadAll(file)
+	h := hasher.NewHashSum(hs.alg)
+	_, err = io.Copy(h, file)
 	if err != nil {
-		hs.logger.Error("error did not read the file", err)
-	}
-	outputHashSum := api.HashData{}
-	res := hex.EncodeToString(hs.hasher.Sum(data))
-	if err != nil {
-		hs.logger.Error("not got hash sum ", err)
 		return nil, err
 	}
-	outputHashSum.Hash = res
-	outputHashSum.FileName = filepath.Base(path)
-	outputHashSum.FullFilePath = path
-	outputHashSum.Algorithm = hs.alg
+	res := hex.EncodeToString(h.Sum(nil))
+	outputHashSum := api.HashData{
+		Hash:         res,
+		FileName:     filepath.Base(path),
+		FullFilePath: path,
+		Algorithm:    hs.alg,
+	}
 	return &outputHashSum, nil
 }
 
@@ -113,7 +107,6 @@ func (hs HashService) GetHashData(dirFiles string, deploymentData *models.Deploy
 		hs.logger.Error("hashData service didn't get hashData sum", err)
 		return nil, err
 	}
-
 	return hashData, nil
 }
 

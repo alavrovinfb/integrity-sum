@@ -52,7 +52,8 @@ You can find the necessary installation information at this link https://helm.sh
 ### Configuration
 To work properly, you first need to set the configuration files:
 + environmental variables in the `.env` file
-+ values in the file `helm-charts/values.yaml`
++ values in the file `helm-charts/database-to-integrity-sum/values.yaml`
++ values in the file `helm-charts/app-to-monitor/values.yaml`
 
 ## Quick start
 ### Using Makefile
@@ -61,7 +62,7 @@ Runs all necessary cleaning targets and dependencies for the project:
 ```
 make all
 ```
-Remove an installed Helm deployment and stop minikube:
+Remove an installed Helm deployments and stop minikube:
 ```
 make stop
 ```
@@ -74,6 +75,14 @@ If you want to generate binaries for different platforms:
 make compile
 ```
 ### Manual start
+Set some values
++ set the value `secretNameDB` in the file `helm-charts/app-to-monitor/values.yaml` to be the same as the value of `secretName` in the file `helm-charts/database-to-integrity-sum/values.yaml`
++ set the value `releaseNameDB` in the file `helm-charts/app-to-monitor/values.yaml` to be the same as the release name you will use when installing the database
+
++ Minikube start
+```
+minikube start
+```
 Build docker images hasher:
 ```
 eval $(minikube docker-env)
@@ -82,24 +91,29 @@ docker build -t hasher .
 
 Then update the on-disk dependencies to mirror Chart.yaml.
 ```
-helm dependency update helm-charts/
+helm dependency update helm-charts/database-to-integrity-sum
 ```
 This command installs a chart archive.
 ```
 helm install `release name` `path to a packaged chart`
 ```
 
-Install helm chart  
+Install helm chart with database 
 for example
 ```
-helm install app helm-charts/
+helm install db helm-charts/database-to-integrity-sum
+```
+Install helm chart with app
+for example
+```
+helm install app helm-charts/app-to-monitor
 ```
 
 ## Pay attention!
 If you want to use a hasher-sidecar, then you need to specify the following data in your deployment:
 + `main-process-name: "your main process name"`
 + `template:spec:serviceAccountName:` api-version-`hasher` 
-+ `template:shareProcessNamespace: true` 
++ `template:shareProcessNamespace: true`
 
 ## Troubleshooting
 Sometimes you may find that pod is injected with sidecar container as expected, check the following items:
@@ -119,7 +133,11 @@ go doc pkg/api.Result
 ```
 
 ## :mag: Running tests
-
+First of all you need to generate a mock
+```
+go generate ./internal/core/ports/repository.go
+go generate ./internal/core/ports/service.go
+```
 You need to go to the folder where the file is located *_test.go and run the following command:
 ```go
 go test -v

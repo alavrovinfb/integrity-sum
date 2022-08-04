@@ -31,7 +31,6 @@ func TestCreateHash(t *testing.T) {
 					FileName:     "test.txt",
 					FullFilePath: "test/test.txt",
 					Algorithm:    "SHA256",
-					NamePod:      "app-nginx-hasher-integrity-6b64487565-l8ltd",
 				}, nil)
 
 			},
@@ -40,7 +39,6 @@ func TestCreateHash(t *testing.T) {
 				FileName:     "test.txt",
 				FullFilePath: "test/test.txt",
 				Algorithm:    "SHA256",
-				NamePod:      "app-nginx-hasher-integrity-6b64487565-l8ltd",
 			},
 		},
 		{
@@ -53,7 +51,6 @@ func TestCreateHash(t *testing.T) {
 					FileName:     "test2.txt",
 					FullFilePath: "test/h",
 					Algorithm:    "SHA256",
-					NamePod:      "app-nginx-hasher-integrity-6b64487565-l8ltd",
 				}, nil)
 
 			},
@@ -62,7 +59,6 @@ func TestCreateHash(t *testing.T) {
 				FileName:     "test2.txt",
 				FullFilePath: "test/h",
 				Algorithm:    "SHA256",
-				NamePod:      "app-nginx-hasher-integrity-6b64487565-l8ltd",
 			},
 		},
 		{
@@ -75,7 +71,6 @@ func TestCreateHash(t *testing.T) {
 					FileName:     "test.txt",
 					FullFilePath: "test/test.txt",
 					Algorithm:    "SHA1",
-					NamePod:      "app-nginx-hasher-integrity-6b64487565-l8ltd",
 				}, nil)
 
 			},
@@ -84,7 +79,6 @@ func TestCreateHash(t *testing.T) {
 				FileName:     "test.txt",
 				FullFilePath: "test/test.txt",
 				Algorithm:    "SHA1",
-				NamePod:      "app-nginx-hasher-integrity-6b64487565-l8ltd",
 			},
 		},
 		{
@@ -141,7 +135,6 @@ func TestSaveHashData(t *testing.T) {
 				FileName:     "test.txt",
 				FullFilePath: "test/test.txt",
 				Algorithm:    "SHA256",
-				NamePod:      "app-nginx-hasher-integrity-6b64487565-l8ltd",
 			}},
 			deploymentData: &models.DeploymentData{
 				Image:                "nginx:latest",
@@ -163,7 +156,6 @@ func TestSaveHashData(t *testing.T) {
 				FileName:     "test.txt",
 				FullFilePath: "test/test.txt",
 				Algorithm:    "SHA256",
-				NamePod:      "app-nginx-hasher-integrity-6b64487565-l8ltd",
 			}},
 			deploymentData: &models.DeploymentData{
 				Image:                "nginx:latest",
@@ -327,7 +319,6 @@ func TestIsDataChanged(t *testing.T) {
 				FileName:     "test.txt",
 				FullFilePath: "test/test.txt",
 				Algorithm:    "SHA256",
-				NamePod:      "app-nginx-hasher-integrity-6b64487565-l8ltd",
 			}},
 			hashDataFromDB: []*models.HashDataFromDB{{
 				ID:             1,

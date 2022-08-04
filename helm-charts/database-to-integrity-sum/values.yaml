@@ -1,38 +1,14 @@
-# Container image variables
-container:
-  name: nginx # Container name
-  image: nginx:latest # Container image that you deploy to the cluster
-
-containerSidecar:
-  name: hasher # Container name
-  image: hasher:latest # Container image that you deploy to the cluster
-
-# Name and identifier variables
-metadata:
-  deploymentName: nginx-hasher-integrity # Set the unique name for deployment schema
-  appName: nginx-app # Application name label
-
-# Name of Container Monitor App service account
-serviceAccount: hasher # Service account name
-
-# Number of replicas
-replicaCount: 1
-
-# Configuration file variables
-configMap:
-  processName: nginx # Container process name
-  mountPath: etc/nginx # Tracked folder path
-
 # Dependency to database "postgresql"
-secretName: secret-database-to-integrety-sum # Set the unique name for secret for database
+# Set the unique name for secret for database
+secretName: secret-database-to-integrity-sum
 
 postgresql:
   auth:
     # Authentication data to connect to the database, need to set
-    postgresPassword: "1234"
-    username: "user"
-    password: "1234"
-    database: "hashdb"
+    postgresPassword: ""
+    username: ""
+    password: ""
+    database: ""
     postgresqlDataDir: /bitnami/postgresql/data
 
   primary:

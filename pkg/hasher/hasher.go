@@ -9,20 +9,22 @@ import (
 )
 
 // NewHashSum takes a hashing algorithm as input and returns a hash sum with other data or an error
-func NewHashSum(alg string) (h hash.Hash, err error) {
+func NewHashSum(alg string) hash.Hash {
+
 	switch alg {
 	case "MD5":
-		h = md5.New()
+		return md5.New()
 	case "SHA1":
-		h = sha1.New()
+		return sha1.New()
 	case "SHA224":
-		h = sha256.New224()
+		return sha256.New224()
 	case "SHA384":
-		h = sha512.New384()
+		return sha512.New384()
 	case "SHA512":
-		h = sha512.New()
+		return sha512.New()
+	case "SHA256":
+		fallthrough
 	default:
-		h = sha256.New()
+		return sha256.New()
 	}
-	return h, nil
 }

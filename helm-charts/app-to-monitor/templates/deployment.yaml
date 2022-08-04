@@ -33,7 +33,7 @@ spec:
           imagePullPolicy: Never
           envFrom:
             - secretRef:
-                name: {{.Release.Name}}-{{ .Values.secretName}}
+                name: {{ .Values.releaseNameDB }}-{{ .Values.secretNameDB}} # Name of the secret environmental variable file to load from database
           env:
             - name: POD_NAME
               valueFrom:

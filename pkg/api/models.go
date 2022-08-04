@@ -5,5 +5,4 @@ type HashData struct {
 	FileName     string
 	FullFilePath string
 	Algorithm    string
-	NamePod      string
 }
