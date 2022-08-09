@@ -37,6 +37,7 @@ $ cd path/to/install
 Download the named modules into the module cache
 ```
 go mod download
+```
 
 ## :hammer: Installing components
 ### Running locally
