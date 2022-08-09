@@ -40,6 +40,25 @@ Download the named modules into the module cache
 ```
 go mod download
 ```
+
+### Demo-App
+You can test this application in your CLI — Command Line Interface on local files and folders.   
+You can use it with option(flags) like:
+1) **`-d`** (path to dir):
+```
+go run cmd/demo-app/main.go -d ./..
+```
+2) **`-a`** (hash algorithm):
+```
+go run cmd/demo-app/main.go -a sha256
+go run cmd/demo-app/main.go -a SHA256
+go run cmd/demo-app/main.go -a SHA256 -d ./..
+```
+3) **`-h`** (options docs):
+```
+go run cmd/demo-app/main.go -h
+```
+
 ### Running locally
 The code only works running inside a pod in Kubernetes
 You need to have a Kubernetes cluster, and the kubectl command-line tool must be configured to communicate with your cluster.
