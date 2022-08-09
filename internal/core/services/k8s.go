@@ -29,18 +29,18 @@ func NewKuberService(logger *logrus.Logger) *KuberService {
 func (ks *KuberService) GetDataFromK8sAPI() (*models.DataFromK8sAPI, error) {
 	kuberData, err := ks.ConnectionToK8sAPI()
 	if err != nil {
-		ks.logger.Error("can't connection to K8sAPI: %s", err)
+		ks.logger.Errorf("can't connection to K8sAPI: %s", err)
 		return nil, err
 	}
 	deploymentData, err := ks.GetDataFromDeployment(kuberData)
 	if err != nil {
-		ks.logger.Error("error get data from kuberAPI %s", err)
+		ks.logger.Errorf("error get data from kuberAPI %s", err)
 		return nil, err
 	}
 
 	configData, err := ks.GetDataFromConfigMap(kuberData, deploymentData)
 	if err != nil {
-		ks.logger.Error("err while getting data from configMap K8sAPI %s", err)
+		ks.logger.Errorf("err while getting data from configMap K8sAPI %s", err)
 		return &models.DataFromK8sAPI{}, err
 	}
 

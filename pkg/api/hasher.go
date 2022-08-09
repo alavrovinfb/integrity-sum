@@ -3,9 +3,10 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
+
+	"github.com/sirupsen/logrus"
 )
 
 // SearchFilePath searches for all files in the given directory

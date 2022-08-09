@@ -1,13 +1,14 @@
 # Dependency to database "postgresql"
-secretName: secret-database-to-integrety-sum # Set the unique name for secret for database
+# Set the unique name for secret for database
+secretName: secret-database-to-integrity-sum
 
 postgresql:
   auth:
     # Authentication data to connect to the database, need to set
-    postgresPassword: "1234"
-    username: "user"
-    password: "1234"
-    database: "hashdb"
+    postgresPassword: ""
+    username: ""
+    password: ""
+    database: ""
     postgresqlDataDir: /bitnami/postgresql/data
 
   primary:
@@ -28,8 +29,7 @@ postgresql:
           name_deployment   TEXT,
           name_pod          TEXT,
           time_of_creation  VARCHAR (50),
-          image_tag         TEXT,
-          CONSTRAINT files_unique UNIQUE (full_file_path, algorithm)
+          image_tag         TEXT
           );"
     # Enable security context
     podSecurityContext:

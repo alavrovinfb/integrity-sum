@@ -1,7 +1,9 @@
 package services
 
 import (
+	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,29 +14,22 @@ import (
 	"github.com/integrity-sum/internal/core/ports"
 	"github.com/integrity-sum/pkg/api"
 	"github.com/integrity-sum/pkg/hasher"
-
 	"github.com/sirupsen/logrus"
 )
 
 type HashService struct {
 	hashRepository ports.IHashRepository
-	hasher         hasher.IHasher
 	alg            string
 	logger         *logrus.Logger
 }
 
 // NewHashService creates a new struct HashService
-func NewHashService(hashRepository ports.IHashRepository, alg string, logger *logrus.Logger) (*HashService, error) {
-	h, err := hasher.NewHashSum(alg)
-	if err != nil {
-		return nil, err
-	}
+func NewHashService(hashRepository ports.IHashRepository, alg string, logger *logrus.Logger) *HashService {
 	return &HashService{
 		hashRepository: hashRepository,
-		hasher:         h,
 		alg:            alg,
 		logger:         logger,
-	}, nil
+	}
 }
 
 // WorkerPool launches a certain number of workers for concurrent processing
@@ -62,7 +57,6 @@ func (hs HashService) Worker(wg *sync.WaitGroup, jobs <-chan string, results cha
 			hs.logger.Errorf("error creating file hash - %s, %s", j, err)
 			continue
 		}
-
 		results <- data
 	}
 }
@@ -71,21 +65,28 @@ func (hs HashService) Worker(wg *sync.WaitGroup, jobs <-chan string, results cha
 func (hs HashService) CreateHash(path string) (*api.HashData, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		hs.logger.Error("not exist file path ", err)
+		hs.logger.Errorf("can not open file %s %s", path, err)
 		return nil, err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			hs.logger.Errorf("[HashService]Error closing file: %s", err)
+		}
+	}(file)
 
-	outputHashSum := api.HashData{}
-	res, err := hs.hasher.Hash(file)
+	h := hasher.NewHashSum(hs.alg)
+	_, err = io.Copy(h, file)
 	if err != nil {
-		hs.logger.Error("not got hash sum ", err)
 		return nil, err
 	}
-	outputHashSum.Hash = res
-	outputHashSum.FileName = filepath.Base(path)
-	outputHashSum.FullFilePath = path
-	outputHashSum.Algorithm = hs.alg
+	res := hex.EncodeToString(h.Sum(nil))
+	outputHashSum := api.HashData{
+		Hash:         res,
+		FileName:     filepath.Base(path),
+		FullFilePath: path,
+		Algorithm:    hs.alg,
+	}
 	return &outputHashSum, nil
 }
 
@@ -101,13 +102,12 @@ func (hs HashService) SaveHashData(allHashData []*api.HashData, deploymentData *
 
 // GetHashData accesses the repository to get data from the database
 func (hs HashService) GetHashData(dirFiles string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error) {
-	hash, err := hs.hashRepository.GetHashData(dirFiles, hs.alg, deploymentData)
+	hashData, err := hs.hashRepository.GetHashData(dirFiles, hs.alg, deploymentData)
 	if err != nil {
-		hs.logger.Error("hash service didn't get hash sum", err)
+		hs.logger.Error("hashData service didn't get hashData sum", err)
 		return nil, err
 	}
-
-	return hash, nil
+	return hashData, nil
 }
 
 func (hs HashService) DeleteFromTable(nameDeployment string) error {
@@ -120,14 +120,14 @@ func (hs HashService) DeleteFromTable(nameDeployment string) error {
 }
 
 // IsDataChanged checks if the current data has changed with the data stored in the database
-func (hs HashService) IsDataChanged(currentHashData []*api.HashData, hashDataFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) (bool, error) {
+func (hs HashService) IsDataChanged(currentHashData []*api.HashData, hashDataFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) bool {
 	isDataChanged := wasDataChanged(hashDataFromDB, currentHashData, deploymentData)
 	isAddedFiles := wasAddedFiles(currentHashData, hashDataFromDB)
 
 	if isDataChanged || isAddedFiles {
-		return true, nil
+		return true
 	}
-	return false, nil
+	return false
 }
 
 func wasDataChanged(hashSumFromDB []*models.HashDataFromDB, currentHashData []*api.HashData, deploymentData *models.DeploymentData) bool {

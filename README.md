@@ -25,12 +25,10 @@ integrity-sum injects a `hasher-sidecar` to your pods as a sidecar container.
 * SHA512
 
 ## Architecture
-
 ### Statechart diagram
 ![File location: docs/diagrams/integrityStatechartDiagram.png](/docs/diagrams/integrityStatechartDiagram.png?raw=true "Statechart diagram")
 
 ## Getting Started
-
 ### Clone repository and install dependencies
 ```
 $ git clone https://github.com/ScienceSoft-Inc/integrity-sum.git
@@ -39,7 +37,17 @@ $ cd path/to/install
 Download the named modules into the module cache
 ```
 go mod download
-```
+
+## :hammer: Installing components
+### Running locally
+The code only works running inside a pod in Kubernetes.
+You need to have a Kubernetes cluster, and the kubectl command-line tool must be configured to communicate with your cluster.
+If you do not already have a cluster, you can create one by using `minikube`.  
+Example https://minikube.sigs.k8s.io/docs/start/
+
+### Install Helm
+Before using helm charts you need to install helm on your local machine.  
+You can find the necessary installation information at this link https://helm.sh/docs/intro/install/
 
 ### Demo-App
 You can test this application in your CLI — Command Line Interface on local files and folders.   
@@ -58,49 +66,71 @@ go run cmd/demo-app/main.go -a SHA256 -d ./..
 ```
 go run cmd/demo-app/main.go -h
 ```
-
-### Running locally
-The code only works running inside a pod in Kubernetes
-You need to have a Kubernetes cluster, and the kubectl command-line tool must be configured to communicate with your cluster.
-If you do not already have a cluster, you can create one by using `minikube`.  
-Example https://minikube.sigs.k8s.io/docs/start/
-
 ### Configuration
 To work properly, you first need to set the configuration files:
 + environmental variables in the `.env` file
-+ config in file `manifests/hasher/configMap.yaml`
-+ secret for database `manifests/database/postgres-secret.yaml`
++ values in the file `helm-charts/database-to-integrity-sum/values.yaml`
++ values in the file `helm-charts/app-to-monitor/values.yaml`
 
 ## Quick start
+### Using Makefile
+You can use make function.  
+Runs all necessary cleaning targets and dependencies for the project:
+```
+make all
+```
+Remove an installed Helm deployments and stop minikube:
+```
+make stop
+```
+Building and running the project on a local machine:
+```
+make run
+```
+If you want to generate binaries for different platforms:
+```
+make compile
+```
+### Manual start
+Set some values
++ set the value `secretNameDB` in the file `helm-charts/app-to-monitor/values.yaml` to be the same as the value of `secretName` in the file `helm-charts/database-to-integrity-sum/values.yaml`
++ set the value `releaseNameDB` in the file `helm-charts/app-to-monitor/values.yaml` to be the same as the release name you will use when installing the database
+
++ Minikube start
+```
+minikube start
+```
 Build docker images hasher:
 ```
 eval $(minikube docker-env)
 docker build -t hasher .
 ```
 
-## :hammer: Installing components
-### Install Helm
-Before using helm charts you need to install helm on your local machine.  
-You can find the necessary installation information at this link https://helm.sh/docs/intro/install/
-
 Then update the on-disk dependencies to mirror Chart.yaml.
 ```
 helm dependency update helm-charts/database-to-integrity-sum
 ```
-Install helm chart with database
+This command installs a chart archive.
+```
+helm install `release name` `path to a packaged chart`
+```
+
+Install helm chart with database 
+for example
 ```
 helm install db helm-charts/database-to-integrity-sum
 ```
 Install helm chart with app
+for example
 ```
 helm install app helm-charts/app-to-monitor
 ```
 
-##Pay attention!
+## Pay attention!
 If you want to use a hasher-sidecar, then you need to specify the following data in your deployment:
 + `main-process-name: "your main process name"`
 + `template:spec:serviceAccountName:` api-version-`hasher` 
-+ `template:shareProcessNamespace: true` 
++ `template:shareProcessNamespace: true`
 
 ## Troubleshooting
 Sometimes you may find that pod is injected with sidecar container as expected, check the following items:
@@ -108,7 +138,7 @@ Sometimes you may find that pod is injected with sidecar container as expected, 
 1) The pod is in running state with `hasher-sidecar` sidecar container injected and no error logs.
 2) Check if the application pod has he correct labels `main-process-name`.
 ___________________________
-### :notebook_with_decorative_cover: Godoc extracts and generates documentation for Go programs
+## :notebook_with_decorative_cover: Godoc extracts and generates documentation for Go programs
 #### Presents the documentation as a web page.
 ```go
 godoc -http=:6060/integritySum
@@ -119,8 +149,12 @@ for example
 go doc pkg/api.Result
 ```
 
-### :mag: Running tests
-
+## :mag: Running tests
+First of all you need to generate a mock
+```
+go generate ./internal/core/ports/repository.go
+go generate ./internal/core/ports/service.go
+```
 You need to go to the folder where the file is located *_test.go and run the following command:
 ```go
 go test -v
@@ -135,10 +169,10 @@ or
 ```
 go test -v ./...
 ```
-### :mag: Running linter "golangci-lint"
+## :mag: Running linter "golangci-lint"
 ```
 golangci-lint run
 ```
 
-##License
+## License
 This project uses the MIT software license. See [full license file](https://github.com/ScienceSoft-Inc/integrity-sum/blob/main/LICENSE)

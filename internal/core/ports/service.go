@@ -2,10 +2,11 @@ package ports
 
 import (
 	"context"
-	"github.com/integrity-sum/internal/core/models"
-	"github.com/integrity-sum/pkg/api"
 	"os"
 	"sync"
+
+	"github.com/integrity-sum/internal/core/models"
+	"github.com/integrity-sum/pkg/api"
 )
 
 //go:generate mockgen -source=service.go -destination=mocks/mock_service.go
@@ -22,7 +23,7 @@ type IHashService interface {
 	SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error
 	GetHashData(dirPath string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error)
 	DeleteFromTable(nameDeployment string) error
-	IsDataChanged(currentHashData []*api.HashData, hashSumFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) (bool, error)
+	IsDataChanged(currentHashData []*api.HashData, hashSumFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) bool
 	CreateHash(path string) (*api.HashData, error)
 	WorkerPool(jobs chan string, results chan *api.HashData)
 	Worker(wg *sync.WaitGroup, jobs <-chan string, results chan<- *api.HashData)
