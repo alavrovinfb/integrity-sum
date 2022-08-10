@@ -58,7 +58,7 @@ func main() {
 		repository := repositories.NewAppRepository(logger)
 
 		// Initialize service
-		service, err := services.NewAppService(repository, algorithm, logger)
+		service := services.NewAppService(repository, algorithm, logger)
 		if err != nil {
 			logger.Fatalf("can't init service: %s", err)
 		}

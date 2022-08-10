@@ -31,26 +31,15 @@ integrity-sum injects a `hasher-sidecar` to your pods as a sidecar container.
 ## Getting Started
 ### Clone repository and install dependencies
 ```
-$ git clone https://github.com/ScienceSoft-Inc/integrity-sum.git
 $ cd path/to/install
+$ git clone https://github.com/ScienceSoft-Inc/integrity-sum.git
 ```
 Download the named modules into the module cache
 ```
 go mod download
 ```
 
-## :hammer: Installing components
-### Running locally
-The code only works running inside a pod in Kubernetes.
-You need to have a Kubernetes cluster, and the kubectl command-line tool must be configured to communicate with your cluster.
-If you do not already have a cluster, you can create one by using `minikube`.  
-Example https://minikube.sigs.k8s.io/docs/start/
-
-### Install Helm
-Before using helm charts you need to install helm on your local machine.  
-You can find the necessary installation information at this link https://helm.sh/docs/intro/install/
-
-### Demo-App
+## Demo-App
 You can test this application in your CLI — Command Line Interface on local files and folders.   
 You can use it with option(flags) like:
 1) **`-d`** (path to dir):
@@ -67,6 +56,18 @@ go run cmd/demo-app/main.go -a SHA256 -d ./..
 ```
 go run cmd/demo-app/main.go -h
 ```
+
+## :hammer: Installing components
+### Running locally
+The code only works running inside a pod in Kubernetes.
+You need to have a Kubernetes cluster, and the kubectl command-line tool must be configured to communicate with your cluster.
+If you do not already have a cluster, you can create one by using `minikube`.  
+Example https://minikube.sigs.k8s.io/docs/start/
+
+### Install Helm
+Before using helm charts you need to install helm on your local machine.  
+You can find the necessary installation information at this link https://helm.sh/docs/intro/install/
+
 ### Configuration
 To work properly, you first need to set the configuration files:
 + environmental variables in the `.env` file
