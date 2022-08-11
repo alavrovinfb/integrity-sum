@@ -1,8 +1,8 @@
 BINARY_NAME=integritySum
-
+VERSION_MOCKGEN=v1.6.0
 ## You can change these values
-RELEASE_NAME_DB=db5
-RELEASE_NAME_APP=app5
+RELEASE_NAME_DB=db
+RELEASE_NAME_APP=app
 
 ## Runs all of the required cleaning and verification targets.
 .PHONY : all
@@ -17,6 +17,7 @@ mod-download:
 ## Generates folders with mock functions
 .PHONY : generate
 generate:
+	go install github.com/golang/mock/mockgen@${VERSION_MOCKGEN}
 	export PATH=$PATH:$(go env GOPATH)/bin
 	go generate ./internal/core/ports/repository.go
 	go generate ./internal/core/ports/service.go

@@ -152,7 +152,12 @@ go doc pkg/api.Result
 ```
 
 ## :mag: Running tests
-First of all you need to generate a mock
+First of all you need to install mockgen:
+```
+go install github.com/golang/mock/mockgen@${VERSION_MOCKGEN}
+```
+
+Generate a mock:
 ```
 go generate ./internal/core/ports/repository.go
 go generate ./internal/core/ports/service.go
