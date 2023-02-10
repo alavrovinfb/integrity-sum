@@ -6,23 +6,21 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/integrity-sum/internal/configs"
-	logConfig "github.com/integrity-sum/pkg/logger"
+	"github.com/joho/godotenv"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	"github.com/integrity-sum/internal/initialize"
-	"github.com/joho/godotenv"
+	logConfig "github.com/integrity-sum/pkg/logger"
 )
 
 func main() {
-	return
+	initConfig()
 
 	// Load values from .env into the system
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("No .env file found")
 	}
-
-	// Checking database connection values
-	configs.ValidateDBConnectionValues()
 
 	// Initialize config for logger
 	logger, err := logConfig.LoadConfig()
@@ -41,4 +39,10 @@ func main() {
 
 	// Initialize program
 	initialize.Initialize(ctx, logger, sig)
+}
+
+func initConfig() {
+	pflag.Parse()
+	viper.AutomaticEnv()
+	// fmt.Printf("dbconn: %v\n", configs.GetDBConnString())
 }

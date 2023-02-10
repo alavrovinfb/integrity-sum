@@ -15,15 +15,6 @@ type HashDataFromDB struct {
 	NameDeployment string
 }
 
-type ConnectionDB struct {
-	Dbdriver   string
-	DbUser     string
-	DbPassword string
-	DbPort     string
-	DbHost     string
-	DbName     string
-}
-
 type KuberData struct {
 	Clientset  *kubernetes.Clientset
 	Namespace  string

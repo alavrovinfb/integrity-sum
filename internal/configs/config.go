@@ -1,42 +1,44 @@
 package configs
 
 import (
-	"log"
+	"fmt"
 	"os"
+
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
-func ValidateDBConnectionValues() {
-	DbDriver, ok := os.LookupEnv("DB_DRIVER")
-	if !ok {
-		DbDriver = "postgres"
-		log.Printf("DB_DRIVER was not set. setting by default: %s", DbDriver)
-	}
+// defaults
+const (
+	dbHost              = "127.0.0.1"
+	dbPort              = 5432
+	dbName              = "postgres"
+	dbUser              = "postgres"
+	dbPassword          = "postgres"
+	dbConnectionTimeout = 10
+)
 
-	DbHost, ok := os.LookupEnv("DB_HOST")
-	if !ok {
-		DbHost = "localhost"
-		log.Printf("DB_HOST was not set. setting by default: %s", DbHost)
+func init() {
+	fsDB := pflag.NewFlagSet("db", pflag.ContinueOnError)
+	fsDB.String("db-host", dbHost, "DB host")
+	fsDB.Int("db-port", dbPort, "DB port")
+	fsDB.String("db-name", dbName, "DB name")
+	fsDB.String("db-user", dbUser, "DB user name")
+	fsDB.String("db-password", dbPassword, "DB user password")
+	fsDB.Int("db-connection-timeout", dbConnectionTimeout, "DB connection timeout")
+	if err := viper.BindPFlags(fsDB); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
+}
 
-	DbPassword, ok := os.LookupEnv("DB_PASSWORD")
-	if !ok {
-		log.Fatalf("DB_PASSWORD was not set. setting by default: %s", DbPassword)
-	}
-
-	DbUser, ok := os.LookupEnv("DB_USER")
-	if !ok {
-		log.Fatalf("DB_USER was not set. setting by default: %s", DbUser)
-	}
-
-	DbPort, ok := os.LookupEnv("DB_PORT")
-	if !ok {
-		DbPort = "5432"
-		log.Printf("DB_PORT was not set. setting by default: %s", DbPort)
-	}
-
-	DbName, ok := os.LookupEnv("DB_NAME")
-	if !ok {
-		log.Fatalf("DB_NAME was not set. setting by default: %s", DbName)
-	}
-
+func GetDBConnString() string {
+	return fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=disable&connect_timeout=%d",
+		viper.GetString("db-user"),
+		viper.GetString("db-password"),
+		viper.GetString("db-host"),
+		viper.GetInt("db-port"),
+		viper.GetString("db-name"),
+		viper.GetInt("db-connection-timeout"),
+	)
 }
