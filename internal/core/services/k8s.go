@@ -7,12 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/integrity-sum/internal/core/models"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	"github.com/integrity-sum/internal/core/models"
 )
 
 type KuberService struct {
@@ -95,7 +97,7 @@ func (ks *KuberService) ConnectionToK8sAPI() (*models.KuberData, error) {
 	return kuberData, nil
 }
 func (ks *KuberService) GetDataFromConfigMap(kuberData *models.KuberData, deploymentData *models.DeploymentData) (*models.ConfigMapData, error) {
-	cm, err := kuberData.Clientset.CoreV1().ConfigMaps(kuberData.Namespace).Get(context.Background(), deploymentData.ReleaseName+"-"+os.Getenv("CONFIG_MAP_NAME_FOR_HASHER"), metav1.GetOptions{})
+	cm, err := kuberData.Clientset.CoreV1().ConfigMaps(kuberData.Namespace).Get(context.Background(), deploymentData.ReleaseName+"-"+viper.GetString("cm-name"), metav1.GetOptions{})
 	if err != nil {
 		ks.logger.Error("err while getting data from configMap kuberAPI ", err)
 		return nil, err
@@ -139,7 +141,7 @@ func (ks *KuberService) GetDataFromDeployment(kuberData *models.KuberData) (*mod
 	}
 
 	for label, value := range allDeploymentData.Spec.Template.Labels {
-		if label == os.Getenv("MAIN_PROCESS_NAME") {
+		if label == viper.GetString("main-process-name") {
 			deploymentData.LabelMainProcessName = value
 		}
 	}

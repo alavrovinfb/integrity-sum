@@ -2,11 +2,10 @@ package main
 
 import (
 	"context"
-	"log"
+	"flag"
 	"os"
 	"os/signal"
 
-	"github.com/joho/godotenv"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
@@ -16,11 +15,6 @@ import (
 
 func main() {
 	initConfig()
-
-	// Load values from .env into the system
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("No .env file found")
-	}
 
 	// Initialize config for logger
 	logger, err := logConfig.LoadConfig()
@@ -42,7 +36,7 @@ func main() {
 }
 
 func initConfig() {
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 	viper.AutomaticEnv()
-	// fmt.Printf("dbconn: %v\n", configs.GetDBConnString())
 }

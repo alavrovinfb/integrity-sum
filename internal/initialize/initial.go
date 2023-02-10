@@ -2,22 +2,50 @@ package initialize
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
 	"github.com/integrity-sum/internal/core/services"
 	"github.com/integrity-sum/internal/repositories"
-	"github.com/sirupsen/logrus"
 )
+
+// config defaults
+const (
+	procDir                = "/proc"
+	durationTime           = 30 * time.Second
+	algorithm              = "SHA256"
+	configMapNameForHasher = "integrity-sum-config"
+	mainProcessName        = "main-process-name"
+)
+
+func init() {
+	fsSum := pflag.NewFlagSet("sum", pflag.ContinueOnError)
+	fsSum.String("proc-dir", procDir, "path to /proc")
+	fsSum.Duration("duration-time", durationTime, "specific interval of time repeatedly for ticker")
+	fsSum.Int("count-workers", runtime.NumCPU(), "number of running workers in the workerpool")
+	fsSum.String("algorithm", algorithm, "hashing algorithm for hashing data")
+	fsSum.String("cm-name", configMapNameForHasher, "name of configMap for hasher")
+	fsSum.String("main-process-name", mainProcessName, "the name of the main process to be monitored by the hasher")
+	if err := viper.BindPFlags(fsSum); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
 
 func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) {
 	// Initialize repository
 	repository := repositories.NewAppRepository(logger)
 
 	// Initialize service
-	algorithm := os.Getenv("ALGORITHM")
+	algorithm := viper.GetString("algorithm")
 
 	service := services.NewAppService(repository, algorithm, logger)
 
@@ -39,11 +67,7 @@ func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) 
 	//Getting the path to the monitoring directory
 	dirPath := "../proc/" + strconv.Itoa(pid) + "/root/" + dataFromK8sAPI.ConfigMapData.MountPath
 
-	duration, err := strconv.Atoi(os.Getenv("DURATION_TIME"))
-	if err != nil {
-		duration = 15
-	}
-	ticker := time.NewTicker(time.Duration(duration) * time.Second)
+	ticker := time.NewTicker(viper.GetDuration("duration-time"))
 
 	var wg sync.WaitGroup
 	wg.Add(1)

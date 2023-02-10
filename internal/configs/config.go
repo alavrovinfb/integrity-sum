@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// defaults
+// config defaults
 const (
 	dbHost              = "127.0.0.1"
 	dbPort              = 5432

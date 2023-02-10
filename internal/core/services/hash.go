@@ -6,15 +6,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strconv"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 
 	"github.com/integrity-sum/internal/core/models"
 	"github.com/integrity-sum/internal/core/ports"
 	"github.com/integrity-sum/pkg/api"
 	"github.com/integrity-sum/pkg/hasher"
-	"github.com/sirupsen/logrus"
 )
 
 type HashService struct {
@@ -34,10 +34,7 @@ func NewHashService(hashRepository ports.IHashRepository, alg string, logger *lo
 
 // WorkerPool launches a certain number of workers for concurrent processing
 func (hs HashService) WorkerPool(jobs chan string, results chan *api.HashData) {
-	countWorkers, err := strconv.Atoi(os.Getenv("COUNT_WORKERS"))
-	if err != nil {
-		countWorkers = runtime.NumCPU()
-	}
+	countWorkers := viper.GetInt("count-workers")
 
 	var wg sync.WaitGroup
 	for w := 1; w <= countWorkers; w++ {

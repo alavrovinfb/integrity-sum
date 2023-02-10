@@ -1,11 +1,9 @@
 package repositories
 
 import (
-	"fmt"
-	"os"
+	"github.com/sirupsen/logrus"
 
 	"github.com/integrity-sum/internal/core/ports"
-	"github.com/sirupsen/logrus"
 )
 
 type AppRepository struct {
@@ -30,7 +28,7 @@ func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, 
 	defer db.Close()
 
 	var count int
-	query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE name_deployment=$1 LIMIT 1;", os.Getenv("TABLE_NAME"))
+	query := "SELECT COUNT(*) FROM hashfiles WHERE name_deployment=$1 LIMIT 1;"
 	row := db.QueryRow(query, deploymentName)
 	err = row.Scan(&count)
 	if err != nil {

@@ -1,12 +1,10 @@
 package repositories
 
 import (
-	"fmt"
-	"os"
+	"github.com/sirupsen/logrus"
 
 	"github.com/integrity-sum/internal/core/models"
 	"github.com/integrity-sum/pkg/api"
-	"github.com/sirupsen/logrus"
 )
 
 type HashRepository struct {
@@ -33,9 +31,9 @@ func (hr HashRepository) SaveHashData(allHashData []*api.HashData, deploymentDat
 		hr.logger.Error("err while saving data in database ", err)
 		return err
 	}
-	query := fmt.Sprintf(`
-		INSERT INTO %s (file_name,full_file_path,hash_sum,algorithm,name_pod,image_tag,time_of_creation, name_deployment)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8);`, os.Getenv("TABLE_NAME"))
+	query := `
+		INSERT INTO hashfiles (file_name,full_file_path,hash_sum,algorithm,name_pod,image_tag,time_of_creation, name_deployment)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8);`
 
 	for _, hash := range allHashData {
 		_, err = tx.Exec(query, hash.FileName, hash.FullFilePath, hash.Hash, hash.Algorithm, deploymentData.NamePod, deploymentData.Image, deploymentData.Timestamp, deploymentData.NameDeployment)
@@ -64,7 +62,7 @@ func (hr HashRepository) GetHashData(dirFiles, algorithm string, deploymentData 
 
 	var allHashDataFromDB []*models.HashDataFromDB
 
-	query := fmt.Sprintf("SELECT id,file_name,full_file_path,hash_sum,algorithm,image_tag,name_pod,name_deployment FROM %s WHERE full_file_path LIKE $1 and algorithm=$2 and name_pod=$3", os.Getenv("TABLE_NAME"))
+	query := "SELECT id,file_name,full_file_path,hash_sum,algorithm,image_tag,name_pod,name_deployment FROM hashfiles WHERE full_file_path LIKE $1 and algorithm=$2 and name_pod=$3"
 
 	rows, err := db.Query(query, "%"+dirFiles+"%", algorithm, deploymentData.NamePod)
 	if err != nil {
@@ -93,7 +91,7 @@ func (hr HashRepository) DeleteFromTable(nameDeployment string) error {
 	}
 	defer db.Close()
 
-	query := fmt.Sprintf("DELETE FROM %s WHERE name_deployment=$1;", os.Getenv("TABLE_NAME"))
+	query := "DELETE FROM hashfiles WHERE name_deployment=$1;"
 	_, err = db.Exec(query, nameDeployment)
 	if err != nil {
 		hr.logger.Error("err while deleting rows in database", err)

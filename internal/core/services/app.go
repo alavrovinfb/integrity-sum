@@ -8,12 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+
 	"github.com/integrity-sum/internal/core/models"
 	"github.com/integrity-sum/internal/core/ports"
 	"github.com/integrity-sum/internal/repositories"
 	"github.com/integrity-sum/pkg/api"
-
-	"github.com/sirupsen/logrus"
 )
 
 type AppService struct {
@@ -38,7 +39,7 @@ func NewAppService(r *repositories.AppRepository, algorithm string, logger *logr
 
 // GetPID getting pid by process name
 func (as *AppService) GetPID(configData *models.ConfigMapData) (int, error) {
-	if os.Chdir(os.Getenv("PROC_DIR")) != nil {
+	if os.Chdir(viper.GetString("proc-dir")) != nil {
 		as.logger.Error("/proc unavailable")
 		return 0, errors.New("error changing the current working directory to the named directory")
 	}
