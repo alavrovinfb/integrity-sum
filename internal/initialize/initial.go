@@ -42,7 +42,13 @@ func init() {
 
 func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) {
 	// Initialize repository
-	repository := repositories.NewAppRepository(logger)
+
+	db, err := repositories.ConnectionToDB(logger)
+	if err != nil {
+		logger.Fatalf("can't connect to database: %s", err)
+	}
+
+	repository := repositories.NewAppRepository(logger, db)
 
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
