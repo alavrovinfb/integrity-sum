@@ -12,9 +12,9 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-func InitLogger(config *LoggerConfig) *logrus.Logger {
+func InitLogger(ll int) *logrus.Logger {
 	l := logrus.New()
-	l.Level = logrus.Level(config.Level)
+	l.Level = logrus.Level(ll)
 	l.SetReportCaller(true)
 
 	logfile := &lumberjack.Logger{

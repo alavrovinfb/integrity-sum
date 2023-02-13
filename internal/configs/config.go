@@ -30,6 +30,12 @@ func init() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	viper.BindEnv("db-host", "DB_HOST")
+	viper.BindEnv("db-port", "DB_PORT")
+	viper.BindEnv("db-name", "DB_NAME")
+	viper.BindEnv("db-user", "DB_USER")
+	viper.BindEnv("db-password", "DB_PASSWORD")
+	viper.BindEnv("db-connection-timeout", "DB_CONNECTION_TIMEOUT")
 }
 
 func GetDBConnString() string {
