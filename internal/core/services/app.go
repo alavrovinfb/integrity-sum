@@ -1,16 +1,15 @@
 package services
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
 	"errors"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 
 	"github.com/integrity-sum/internal/core/models"
 	"github.com/integrity-sum/internal/core/ports"
@@ -35,50 +34,17 @@ func NewAppService(r *repositories.AppRepository, algorithm string, logger *logr
 	}
 }
 
-// GetPID getting pid by process name
-func (as *AppService) GetPID(configData *models.ConfigMapData) (int, error) {
-	if os.Chdir(viper.GetString("proc-dir")) != nil {
-		as.logger.Error("/proc unavailable")
-		return 0, errors.New("error changing the current working directory to the named directory")
-	}
-
-	files, err := os.ReadDir(".")
+// GetPID returns process PID by name
+func (as *AppService) GetPID(procName string) (pid int, err error) {
+	cmdOut, err := exec.Command("pidof", procName).Output()
 	if err != nil {
-		as.logger.Error("unable to read /proc directory")
-		return 0, err
+		as.logger.WithField("procName", procName).WithError(err).Error("GetPID(): proc name not found")
+		return
 	}
-	var pid int
-	for _, file := range files {
-		if !file.IsDir() {
-			as.logger.Info("file isn't a directory")
-			return 0, err
-		}
-
-		// Our directory name should convert to integer if it's a PID
-		pid, err = strconv.Atoi(file.Name())
-		if err != nil {
-			return 0, err
-		}
-
-		// Open the /proc/xxx/stat file to read the name
-		f, err := os.Open(file.Name() + "/stat")
-		if err != nil {
-			as.logger.Error("unable to open", file.Name())
-			return 0, err
-		}
-		defer f.Close()
-
-		r := bufio.NewReader(f)
-		scanner := bufio.NewScanner(r)
-		scanner.Split(bufio.ScanWords)
-		for scanner.Scan() {
-			if strings.Contains(scanner.Text(), configData.ProcName) {
-				return pid, nil
-			}
-		}
-	}
-
-	return pid, nil
+	// if found, we always have a list of PIDs
+	ss := strings.Split(string(cmdOut), " ")
+	pid, err = strconv.Atoi(strings.TrimSpace(ss[0]))
+	return
 }
 
 // LaunchHasher takes a path to a directory and returns HashData
