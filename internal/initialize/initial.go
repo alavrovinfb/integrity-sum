@@ -56,7 +56,7 @@ func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) 
 	}
 
 	//Getting pid
-	pid, err := service.GetPID(dataFromK8sAPI.ConfigMapData)
+	pid, err := service.GetPID(dataFromK8sAPI.ConfigMapData.ProcName)
 	if err != nil {
 		logger.Fatalf("err while getting pid %s", err)
 	}
