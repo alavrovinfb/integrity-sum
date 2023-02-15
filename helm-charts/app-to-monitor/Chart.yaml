@@ -1,5 +1,5 @@
 apiVersion: v2
-name: App-Monitor-HelmChart
+name: app-monitor
 description: Helm Chart for app monitor
 type: application
 version: 0.1.0

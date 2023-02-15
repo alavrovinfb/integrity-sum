@@ -40,7 +40,6 @@ func (ks *KuberService) GetDataFromK8sAPI() (*models.DataFromK8sAPI, error) {
 		return nil, err
 	}
 
-	configData, err := ks.GetDataFromConfigMap(kuberData, deploymentData)
 	if err != nil {
 		ks.logger.Errorf("err while getting data from configMap K8sAPI %s", err)
 		return &models.DataFromK8sAPI{}, err
@@ -49,7 +48,6 @@ func (ks *KuberService) GetDataFromK8sAPI() (*models.DataFromK8sAPI, error) {
 	dataFromK8sAPI := &models.DataFromK8sAPI{
 		KuberData:      kuberData,
 		DeploymentData: deploymentData,
-		ConfigMapData:  configData,
 	}
 
 	return dataFromK8sAPI, nil
@@ -95,32 +93,6 @@ func (ks *KuberService) ConnectionToK8sAPI() (*models.KuberData, error) {
 		TargetType: targetType,
 	}
 	return kuberData, nil
-}
-func (ks *KuberService) GetDataFromConfigMap(kuberData *models.KuberData, deploymentData *models.DeploymentData) (*models.ConfigMapData, error) {
-	cm, err := kuberData.Clientset.CoreV1().ConfigMaps(kuberData.Namespace).Get(context.Background(), deploymentData.ReleaseName+"-"+viper.GetString("cm-name"), metav1.GetOptions{})
-	if err != nil {
-		ks.logger.Error("err while getting data from configMap kuberAPI ", err)
-		return nil, err
-	}
-	var configMapData models.ConfigMapData
-	valuesEnv := make(map[string]string)
-	for key, value := range cm.Data {
-		if key == deploymentData.LabelMainProcessName {
-			envs := strings.Split(strings.TrimSpace(value), "\n")
-			for _, subStr := range envs {
-				valuesEnvs := strings.Split(strings.TrimSpace(subStr), "=")
-				valuesEnv[valuesEnvs[0]] = valuesEnvs[1]
-			}
-		}
-	}
-
-	if value, ok := valuesEnv["PID_NAME"]; ok {
-		configMapData.ProcName = value
-	}
-	if value, ok := valuesEnv["MOUNT_PATH"]; ok {
-		configMapData.MountPath = value
-	}
-	return &configMapData, err
 }
 
 func (ks *KuberService) GetDataFromDeployment(kuberData *models.KuberData) (*models.DeploymentData, error) {

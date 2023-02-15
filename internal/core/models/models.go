@@ -31,13 +31,7 @@ type DeploymentData struct {
 	ReleaseName          string
 }
 
-type ConfigMapData struct {
-	ProcName  string
-	MountPath string
-}
-
 type DataFromK8sAPI struct {
 	KuberData      *KuberData
 	DeploymentData *DeploymentData
-	ConfigMapData  *ConfigMapData
 }

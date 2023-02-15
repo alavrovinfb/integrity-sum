@@ -12,7 +12,7 @@ import (
 //go:generate mockgen -source=service.go -destination=mocks/mock_service.go
 
 type IAppService interface {
-	GetPID(configData *models.ConfigMapData) (int, error)
+	GetPID(procName string) (int, error)
 	IsExistDeploymentNameInDB(deploymentName string) bool
 	LaunchHasher(ctx context.Context, dirPath string, sig chan os.Signal) []*api.HashData
 	Start(ctx context.Context, dirPath string, sig chan os.Signal, deploymentData *models.DeploymentData) error
@@ -33,6 +33,5 @@ type IKuberService interface {
 	GetDataFromK8sAPI() (*models.DataFromK8sAPI, error)
 	ConnectionToK8sAPI() (*models.KuberData, error)
 	GetDataFromDeployment(kuberData *models.KuberData) (*models.DeploymentData, error)
-	GetDataFromConfigMap(kuberData *models.KuberData, deploymentData *models.DeploymentData) (*models.ConfigMapData, error)
 	RolloutDeployment(kuberData *models.KuberData) error
 }

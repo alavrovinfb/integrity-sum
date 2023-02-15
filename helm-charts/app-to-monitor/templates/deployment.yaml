@@ -19,6 +19,10 @@ spec:
       labels:
         app: {{ .Values.metadata.appName }}
         main-process-name: "{{ .Values.configMap.processName }}"
+      annotations:
+        integrity-monitor.scnsoft.com/inject: "true"
+        integrity-monitor.scnsoft.com/process: nginx
+        integrity-monitor.scnsoft.com/monitoring-path: etc/nginx
     spec:
       serviceAccountName: {{.Release.Name}}-{{ .Values.serviceAccount }}
       shareProcessNamespace: true
