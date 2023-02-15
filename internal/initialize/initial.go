@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strconv"
 	"sync"
 	"time"
 
@@ -77,7 +76,7 @@ func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) 
 	}
 
 	//Getting the path to the monitoring directory
-	dirPath := "../proc/" + strconv.Itoa(pid) + "/root/" + viper.GetString("monitoring-path")
+	dirPath := fmt.Sprintf("/proc/%d/root/%s", pid, viper.GetString("monitoring-path"))
 
 	ticker := time.NewTicker(viper.GetDuration("duration-time"))
 
