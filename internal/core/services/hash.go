@@ -18,17 +18,17 @@ import (
 )
 
 type HashService struct {
-	hashRepository ports.IHashRepository
-	alg            string
-	logger         *logrus.Logger
+	Repository ports.IAppRepository
+	alg        string
+	logger     *logrus.Logger
 }
 
 // NewHashService creates a new struct HashService
-func NewHashService(hashRepository ports.IHashRepository, alg string, logger *logrus.Logger) *HashService {
+func NewHashService(Repository ports.IAppRepository, alg string, logger *logrus.Logger) *HashService {
 	return &HashService{
-		hashRepository: hashRepository,
-		alg:            alg,
-		logger:         logger,
+		Repository: Repository,
+		alg:        alg,
+		logger:     logger,
 	}
 }
 
@@ -89,7 +89,7 @@ func (hs HashService) CreateHash(path string) (*api.HashData, error) {
 
 // SaveHashData accesses the repository to save data to the database
 func (hs HashService) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
-	err := hs.hashRepository.SaveHashData(allHashData, deploymentData)
+	err := hs.Repository.SaveHashData(allHashData, deploymentData)
 	if err != nil {
 		hs.logger.Error("error while saving data to database", err)
 		return err
@@ -99,7 +99,7 @@ func (hs HashService) SaveHashData(allHashData []*api.HashData, deploymentData *
 
 // GetHashData accesses the repository to get data from the database
 func (hs HashService) GetHashData(dirFiles string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error) {
-	hashData, err := hs.hashRepository.GetHashData(dirFiles, hs.alg, deploymentData)
+	hashData, err := hs.Repository.GetHashData(dirFiles, hs.alg, deploymentData)
 	if err != nil {
 		hs.logger.Error("hashData service didn't get hashData sum", err)
 		return nil, err
@@ -108,7 +108,7 @@ func (hs HashService) GetHashData(dirFiles string, deploymentData *models.Deploy
 }
 
 func (hs HashService) DeleteFromTable(nameDeployment string) error {
-	err := hs.hashRepository.DeleteFromTable(nameDeployment)
+	err := hs.Repository.DeleteFromTable(nameDeployment)
 	if err != nil {
 		hs.logger.Error("err while deleting rows in database", err)
 		return err

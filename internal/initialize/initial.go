@@ -47,7 +47,13 @@ func init() {
 
 func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) {
 	// Initialize repository
-	repository := repositories.NewAppRepository(logger)
+
+	db, err := repositories.ConnectionToDB(logger)
+	if err != nil {
+		logger.Fatalf("can't connect to database: %s", err)
+	}
+
+	repository := repositories.NewAppRepository(logger, db)
 
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
@@ -80,16 +86,16 @@ func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) 
 	go func(ctx context.Context, ticker *time.Ticker) {
 		defer wg.Done()
 		for {
-			if service.IsExistDeploymentNameInDB(dataFromK8sAPI.KuberData.TargetName) {
+			if !service.IsExistDeploymentNameInDB(dataFromK8sAPI.KuberData.TargetName) {
 				logger.Info("Deployment name does not exist in database, save data")
-				err := service.Start(ctx, dirPath, sig, dataFromK8sAPI.DeploymentData)
+				err = service.Start(ctx, dirPath, sig, dataFromK8sAPI.DeploymentData)
 				if err != nil {
 					logger.Fatalf("Error when starting to get and save hash data %s", err)
 				}
 			} else {
 				logger.Info("Deployment name exists in database, checking data")
 				for range ticker.C {
-					err := service.Check(ctx, dirPath, sig, dataFromK8sAPI.DeploymentData, dataFromK8sAPI.KuberData)
+					err = service.Check(ctx, dirPath, sig, dataFromK8sAPI.DeploymentData, dataFromK8sAPI.KuberData)
 					if err != nil {
 						logger.Fatalf("Error when starting to check hash data %s", err)
 					}
