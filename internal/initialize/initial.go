@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strconv"
 	"sync"
 	"time"
 
@@ -24,6 +23,8 @@ const (
 	algorithm              = "SHA256"
 	configMapNameForHasher = "integrity-sum-config"
 	mainProcessName        = "main-process-name"
+	procToMonitor          = "sh" // just a placeholder must be set
+	pathToMonitor          = "/"
 )
 
 func init() {
@@ -34,6 +35,9 @@ func init() {
 	fsSum.String("algorithm", algorithm, "hashing algorithm for hashing data")
 	fsSum.String("cm-name", configMapNameForHasher, "name of configMap for hasher")
 	fsSum.String("main-process-name", mainProcessName, "the name of the main process to be monitored by the hasher")
+	fsSum.String("process", procToMonitor, "the name of the process to be monitored by the hasher")
+	fsSum.String("monitoring-path", pathToMonitor, "the service path to be monitored by the hasher")
+	pflag.CommandLine.AddFlagSet(fsSum)
 	if err := viper.BindPFlags(fsSum); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -62,16 +66,17 @@ func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) 
 	}
 
 	//Getting pid
-	pid, err := service.GetPID(dataFromK8sAPI.ConfigMapData.ProcName)
+	procName := viper.GetString("process")
+	pid, err := service.GetPID(procName)
 	if err != nil {
 		logger.Fatalf("err while getting pid %s", err)
 	}
 	if pid == 0 {
-		logger.Fatalf("proc with name %s not exist", dataFromK8sAPI.ConfigMapData.ProcName)
+		logger.Fatalf("proc with name %s not exist", procName)
 	}
 
 	//Getting the path to the monitoring directory
-	dirPath := "../proc/" + strconv.Itoa(pid) + "/root/" + dataFromK8sAPI.ConfigMapData.MountPath
+	dirPath := fmt.Sprintf("/proc/%d/root/%s", pid, viper.GetString("monitoring-path"))
 
 	ticker := time.NewTicker(viper.GetDuration("duration-time"))
 

@@ -26,10 +26,12 @@ func init() {
 	fsDB.String("db-user", dbUser, "DB user name")
 	fsDB.String("db-password", dbPassword, "DB user password")
 	fsDB.Int("db-connection-timeout", dbConnectionTimeout, "DB connection timeout")
+	pflag.CommandLine.AddFlagSet(fsDB)
 	if err := viper.BindPFlags(fsDB); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
 	viper.BindEnv("db-host", "DB_HOST")
 	viper.BindEnv("db-port", "DB_PORT")
 	viper.BindEnv("db-name", "DB_NAME")

@@ -17,6 +17,7 @@ import (
 func init() {
 	fsLog := pflag.NewFlagSet("log", pflag.ContinueOnError)
 	fsLog.Int("v", 5, "verbose level")
+	pflag.CommandLine.AddFlagSet(fsLog)
 	if err := viper.BindPFlags(fsLog); err != nil {
 		fmt.Printf("error binding flags: %v", err)
 		os.Exit(2)

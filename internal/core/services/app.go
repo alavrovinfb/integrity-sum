@@ -3,18 +3,16 @@ package services
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/integrity-sum/internal/core/models"
 	"github.com/integrity-sum/internal/core/ports"
 	"github.com/integrity-sum/internal/repositories"
 	"github.com/integrity-sum/pkg/api"
+	"github.com/sirupsen/logrus"
 )
 
 type AppService struct {
