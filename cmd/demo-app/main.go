@@ -54,8 +54,14 @@ func main() {
 		}
 		flag.Usage()
 	case len(dirPath) > 0:
+		//connection to database
+		db, err := repositories.ConnectionToDB(logger)
+		if err != nil {
+			logger.Fatalf("can't connect to database: %s", err)
+		}
+
 		// Initialize repository
-		repository := repositories.NewAppRepository(logger)
+		repository := repositories.NewAppRepository(logger, db)
 
 		// Initialize service
 		service := services.NewAppService(repository, algorithm, logger)
