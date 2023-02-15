@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"os"
 	"os/exec"
 	"strconv"
@@ -24,13 +26,10 @@ type AppService struct {
 
 // NewAppService creates a new struct AppService
 func NewAppService(r *repositories.AppRepository, algorithm string, logger *logrus.Logger) *AppService {
-	algorithm = strings.ToUpper(algorithm)
-	IHashService := NewHashService(r.IHashRepository, algorithm, logger)
-	kuberService := NewKuberService(logger)
 	return &AppService{
-		IHashService:   IHashService,
+		IHashService:   NewHashService(r, strings.ToUpper(algorithm), logger),
 		IAppRepository: r,
-		IKuberService:  kuberService,
+		IKuberService:  NewKuberService(logger),
 		logger:         logger,
 	}
 }
@@ -62,7 +61,7 @@ func (as *AppService) LaunchHasher(ctx context.Context, dirPath string, sig chan
 // IsExistDeploymentNameInDB checks if the database is empty
 func (as *AppService) IsExistDeploymentNameInDB(deploymentName string) bool {
 	isEmptyDB, err := as.IAppRepository.IsExistDeploymentNameInDB(deploymentName)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		as.logger.Fatalf("database check error %s", err)
 	}
 	return isEmptyDB
