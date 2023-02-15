@@ -21,7 +21,7 @@ func NewHashRepository(logger *logrus.Logger) *HashRepository {
 func (hr HashRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
 	db, err := ConnectionToDB(hr.logger)
 	if err != nil {
-		hr.logger.Error("failed to connection to database %s", err)
+		hr.logger.Errorf("failed to connection to database %s", err)
 		return err
 	}
 	defer db.Close()
@@ -55,7 +55,7 @@ func (hr HashRepository) SaveHashData(allHashData []*api.HashData, deploymentDat
 func (hr HashRepository) GetHashData(dirFiles, algorithm string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error) {
 	db, err := ConnectionToDB(hr.logger)
 	if err != nil {
-		hr.logger.Error("failed to connection to database %s", err)
+		hr.logger.Errorf("failed to connection to database %s", err)
 		return nil, err
 	}
 	defer db.Close()
@@ -86,7 +86,7 @@ func (hr HashRepository) GetHashData(dirFiles, algorithm string, deploymentData 
 func (hr HashRepository) DeleteFromTable(nameDeployment string) error {
 	db, err := ConnectionToDB(hr.logger)
 	if err != nil {
-		hr.logger.Error("failed to connection to database %s", err)
+		hr.logger.Errorf("failed to connection to database %s", err)
 		return err
 	}
 	defer db.Close()

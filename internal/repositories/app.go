@@ -22,7 +22,7 @@ func NewAppRepository(logger *logrus.Logger) *AppRepository {
 func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, error) {
 	db, err := ConnectionToDB(ar.logger)
 	if err != nil {
-		ar.logger.Error("failed to connection to database %s", err)
+		ar.logger.Errorf("failed to connection to database %s", err)
 		return false, err
 	}
 	defer db.Close()
