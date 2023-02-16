@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -110,12 +109,6 @@ func (ks *KuberService) GetDataFromDeployment(kuberData *models.KuberData) (*mod
 
 	for _, v := range allDeploymentData.Spec.Template.Spec.Containers {
 		deploymentData.Image = v.Image
-	}
-
-	for label, value := range allDeploymentData.Spec.Template.Labels {
-		if label == viper.GetString("main-process-name") {
-			deploymentData.LabelMainProcessName = value
-		}
 	}
 
 	if value, ok := allDeploymentData.Annotations["meta.helm.sh/release-name"]; ok {
