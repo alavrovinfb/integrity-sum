@@ -27,7 +27,7 @@ generate:
 	export PATH=$PATH:$(go env GOPATH)/bin
 	go generate ./internal/core/ports/repository.go
 	go generate ./internal/core/ports/service.go
-	@echo "==> Generated a mocks"
+	@echo "==> Mocks have been generated"
 
 ## Runs the test suite with mocks enabled.
 .PHONY : test
@@ -79,7 +79,7 @@ helm-app:
 
 .PHONY: kind-load-images
 kind-load-images:
-	kind load docker-image hasher:latest 
+	kind load docker-image hasher:latest
 
 .PHONY : tidy
 tidy: ## Cleans the Go module.

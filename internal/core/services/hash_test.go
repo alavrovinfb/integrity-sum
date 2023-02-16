@@ -2,14 +2,15 @@ package services
 
 import (
 	"errors"
+	"os"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/integrity-sum/internal/core/models"
 	mock_ports "github.com/integrity-sum/internal/core/ports/mocks"
 	"github.com/integrity-sum/pkg/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"testing"
 )
 
 func TestCreateHash(t *testing.T) {
@@ -137,12 +138,11 @@ func TestSaveHashData(t *testing.T) {
 				Algorithm:    "SHA256",
 			}},
 			deploymentData: &models.DeploymentData{
-				Image:                "nginx:latest",
-				NamePod:              "app-nginx-hasher-integrity-6b64487565-l8ltd",
-				Timestamp:            "",
-				NameDeployment:       "app-nginx-hasher-integrity",
-				LabelMainProcessName: "nginx",
-				ReleaseName:          "app",
+				Image:          "nginx:latest",
+				NamePod:        "app-nginx-hasher-integrity-6b64487565-l8ltd",
+				Timestamp:      "",
+				NameDeployment: "app-nginx-hasher-integrity",
+				ReleaseName:    "app",
 			},
 			mockBehavior: func(s *mock_ports.MockIHashService, allHashData []*api.HashData, deploymentData *models.DeploymentData) {
 				s.EXPECT().SaveHashData(allHashData, deploymentData).Return(nil)
@@ -158,12 +158,11 @@ func TestSaveHashData(t *testing.T) {
 				Algorithm:    "SHA256",
 			}},
 			deploymentData: &models.DeploymentData{
-				Image:                "nginx:latest",
-				NamePod:              "app-nginx-hasher-integrity-6b64487565-l8ltd",
-				Timestamp:            "",
-				NameDeployment:       "app-nginx-hasher-integrity",
-				LabelMainProcessName: "nginx",
-				ReleaseName:          "app",
+				Image:          "nginx:latest",
+				NamePod:        "app-nginx-hasher-integrity-6b64487565-l8ltd",
+				Timestamp:      "",
+				NameDeployment: "app-nginx-hasher-integrity",
+				ReleaseName:    "app",
 			},
 			mockBehavior: func(s *mock_ports.MockIHashService, allHashData []*api.HashData, deploymentData *models.DeploymentData) {
 				s.EXPECT().SaveHashData(allHashData, deploymentData).Return(errors.New("error while saving data to database"))
@@ -207,12 +206,11 @@ func TestGetHashData(t *testing.T) {
 			name:     "got hash data from database",
 			dirFiles: "..test/",
 			deploymentData: &models.DeploymentData{
-				Image:                "nginx:latest",
-				NamePod:              "app-nginx-hasher-integrity-6b64487565-l8ltd",
-				Timestamp:            "",
-				NameDeployment:       "app-nginx-hasher-integrity",
-				LabelMainProcessName: "nginx",
-				ReleaseName:          "app",
+				Image:          "nginx:latest",
+				NamePod:        "app-nginx-hasher-integrity-6b64487565-l8ltd",
+				Timestamp:      "",
+				NameDeployment: "app-nginx-hasher-integrity",
+				ReleaseName:    "app",
 			},
 			mockBehavior: func(s *mock_ports.MockIHashService, dirFiles string, deploymentData *models.DeploymentData) {
 				s.EXPECT().GetHashData(dirFiles, deploymentData).Return([]*models.HashDataFromDB{}, nil)
@@ -223,12 +221,11 @@ func TestGetHashData(t *testing.T) {
 			name:     "error isn`t nil",
 			dirFiles: "..test/",
 			deploymentData: &models.DeploymentData{
-				Image:                "nginx:latest",
-				NamePod:              "app-nginx-hasher-integrity-6b64487565-l8ltd",
-				Timestamp:            "",
-				NameDeployment:       "app-nginx-hasher-integrity",
-				LabelMainProcessName: "nginx",
-				ReleaseName:          "app",
+				Image:          "nginx:latest",
+				NamePod:        "app-nginx-hasher-integrity-6b64487565-l8ltd",
+				Timestamp:      "",
+				NameDeployment: "app-nginx-hasher-integrity",
+				ReleaseName:    "app",
 			},
 			mockBehavior: func(s *mock_ports.MockIHashService, dirFiles string, deploymentData *models.DeploymentData) {
 				s.EXPECT().GetHashData(dirFiles, deploymentData).Return([]*models.HashDataFromDB{}, errors.New("hashData service didn't get hashData sum"))
@@ -331,12 +328,11 @@ func TestIsDataChanged(t *testing.T) {
 				NameDeployment: "app-nginx-hasher-integrity",
 			}},
 			deploymentData: &models.DeploymentData{
-				Image:                "nginx:latest",
-				NamePod:              "app-nginx-hasher-integrity-6b64487565-l8ltd",
-				Timestamp:            "",
-				NameDeployment:       "app-nginx-hasher-integrity",
-				LabelMainProcessName: "nginx",
-				ReleaseName:          "app",
+				Image:          "nginx:latest",
+				NamePod:        "app-nginx-hasher-integrity-6b64487565-l8ltd",
+				Timestamp:      "",
+				NameDeployment: "app-nginx-hasher-integrity",
+				ReleaseName:    "app",
 			},
 			mockBehavior: func(s *mock_ports.MockIHashService, currentHashData []*api.HashData, hashDataFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) {
 				s.EXPECT().IsDataChanged(currentHashData, hashDataFromDB, deploymentData).Return(false)

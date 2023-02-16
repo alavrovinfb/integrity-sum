@@ -131,15 +131,20 @@ There are some predefined targets in the Makefile for deployment:
 
 ## Pay attention!
 If you want to use a hasher-sidecar, then you need to specify the following data in your deployment:
-+ `main-process-name: "your main process name"`
-+ `template:spec:serviceAccountName:` api-version-`hasher` 
+Pod annotations:
++ `integrity-monitor.scnsoft.com/inject: "true"` - The sidecar injection annotation. If true, sidecar will be injected.
++ `integrity-monitor.scnsoft.com/process: nginx` - This annotation introduces a process to be monitored.
++ `integrity-monitor.scnsoft.com/monitoring-path: etc/nginx` - This annotation specifies monitoring path.
+Service account:
++ `template:spec:serviceAccountName:` api-version-`hasher`
+Share process namespace should be enabled.
 + `template:shareProcessNamespace: true`
 
 ## Troubleshooting
 Sometimes you may find that pod is injected with sidecar container as expected, check the following items:
 
 1) The pod is in running state with `hasher-sidecar` sidecar container injected and no error logs.
-2) Check if the application pod has he correct labels `main-process-name`.
+2) Check if the application pod has the correct annotations as described above.
 ___________________________
 ## :notebook_with_decorative_cover: Godoc extracts and generates documentation for Go programs
 #### Presents the documentation as a web page.
@@ -163,6 +168,10 @@ Generate a mock:
 go generate ./internal/core/ports/repository.go
 go generate ./internal/core/ports/service.go
 ```
+or
+```
+make generate
+```
 You need to go to the folder where the file is located *_test.go and run the following command:
 ```go
 go test -v
@@ -176,6 +185,10 @@ go test -v
 or
 ```
 go test -v ./...
+```
+or 
+```
+make test
 ```
 ## :mag: Running linter "golangci-lint"
 ```
