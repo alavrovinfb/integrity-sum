@@ -168,6 +168,10 @@ Generate a mock:
 go generate ./internal/core/ports/repository.go
 go generate ./internal/core/ports/service.go
 ```
+or
+```
+make generate
+```
 You need to go to the folder where the file is located *_test.go and run the following command:
 ```go
 go test -v
@@ -181,6 +185,10 @@ go test -v
 or
 ```
 go test -v ./...
+```
+or 
+```
+make test
 ```
 ## :mag: Running linter "golangci-lint"
 ```
