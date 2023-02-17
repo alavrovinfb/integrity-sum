@@ -9,11 +9,11 @@ containerSidecar:
 
 # Name and identifier variables
 metadata:
-  deploymentName: nginx-hasher-integrity # Set the unique name for deployment schema
+  deploymentName: nginx-integrity # Set the unique name for deployment schema
   appName: nginx-app # Application name label
 
-# Name of Container Monitor App service account
-serviceAccount: hasher # Service account name
+# Service account name
+serviceAccount: integrity
 
 # Number of replicas
 replicaCount: 1
@@ -24,6 +24,10 @@ configMap:
   processName: nginx # Container process name
   mountPath: etc/nginx # Tracdb5ed folder path
 
-# Data secrets in the database
-secretNameDB: ""
 releaseNameDB: ""
+
+# The DB connection data. Should be overrided by actual values
+db:
+  port: 5432
+  database: ""
+  username: ""
