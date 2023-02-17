@@ -1,7 +1,3 @@
-# Dependency to database "postgresql"
-# Set the unique name for secret for database
-secretName: ""
-
 global:
   postgresql:
     auth:

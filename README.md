@@ -10,12 +10,12 @@
 ![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
 ![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)
 
-This program provides integrity monitoring that checks file or directory of container to determine whether or not they have been tampered with or corrupted.  
+This program provides integrity monitoring that checks file or directory of container to determine whether or not they have been tampered with or corrupted.
 integrity-sum, which is a type of change auditing, verifies and validates these files by comparing them to the stored data in the database.
 
 If program detects that files have been altered, updated, added or compromised, it rolls back deployments to a previous version.
 
-integrity-sum injects a `hasher-sidecar` to your pods as a sidecar container. 
+integrity-sum injects a `hasher-sidecar` to your pods as a sidecar container.
 `hasher-sidecar` the implementation of a hasher in golang, which calculates the checksum of files using different algorithms in kubernetes:
 * MD5
 * SHA256
@@ -40,7 +40,7 @@ go mod download
 ```
 
 ## Demo-App
-You can test this application in your CLI — Command Line Interface on local files and folders.   
+You can test this application in your CLI — Command Line Interface on local files and folders.
 You can use it with option(flags) like:
 1) **`-d`** (path to dir):
 ```
@@ -61,11 +61,11 @@ go run cmd/demo-app/main.go -h
 ### Running locally
 The code only works running inside a pod in Kubernetes.
 You need to have a Kubernetes cluster, and the kubectl command-line tool must be configured to communicate with your cluster.
-If you do not already have a cluster, you can create one by using `minikube`.  
+If you do not already have a cluster, you can create one by using `minikube`.
 Example https://minikube.sigs.k8s.io/docs/start/
 
 ### Install Helm
-Before using helm charts you need to install helm on your local machine.  
+Before using helm charts you need to install helm on your local machine.
 You can find the necessary installation information at this link https://helm.sh/docs/intro/install/
 
 ### Configuration
@@ -76,7 +76,7 @@ To work properly, you first need to set the configuration files:
 
 ## Quick start
 ### Using Makefile
-You can use make function.  
+You can use make function.
 Runs all necessary cleaning targets and dependencies for the project:
 ```
 make all
@@ -105,10 +105,9 @@ Minikube start:
 ```
 minikube start
 ```
-Build docker images hasher:
+Build docker image:
 ```
-eval $(minikube docker-env)
-docker build -t hasher .
+make docker
 ```
 
 Then update the on-disk dependencies to mirror Chart.yaml.
@@ -120,7 +119,7 @@ This command installs a chart archive.
 helm install `release name` `path to a packaged chart`
 ```
 There are some predefined targets in the Makefile for deployment:
-- Install helm chart with database 
+- Install helm chart with database
     ```
     make helm-database
     ```
@@ -186,7 +185,7 @@ or
 ```
 go test -v ./...
 ```
-or 
+or
 ```
 make test
 ```

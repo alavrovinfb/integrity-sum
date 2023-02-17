@@ -65,13 +65,11 @@ helm-database:
 		--set global.postgresql.auth.database=$(DB_NAME) \
 		--set global.postgresql.auth.username=$(DB_USER) \
 		--set global.postgresql.auth.password=$(DB_PASSWORD) \
-		--set secretName=$(DB_SECRET_NAME) \
 		$(HELM_CHART_DB)
 
 helm-app:
 	@helm upgrade -i ${RELEASE_NAME_APP} \
 		--set releaseNameDB=$(RELEASE_NAME_DB) \
-		--set secretNameDB=$(DB_SECRET_NAME) \
 		--set db.database=$(DB_NAME) \
 		--set db.username=$(DB_USER) \
 		--set db.password=$(DB_PASSWORD) \
