@@ -14,6 +14,8 @@ import (
 
 	"github.com/integrity-sum/internal/core/services"
 	"github.com/integrity-sum/internal/repositories"
+	"github.com/integrity-sum/pkg/notification"
+	"github.com/integrity-sum/pkg/notification/splunkclient"
 )
 
 // config defaults
@@ -53,6 +55,12 @@ func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) 
 	}
 
 	repository := repositories.NewAppRepository(logger, db)
+
+	notifier := splunkclient.New(logger, "http://splunk:8088/services/collector/event", "72fbe9ab-2b51-4784-bf07-c2fe96489be1", true)
+	err = notifier.Send(notification.Message{Time: time.Now(), Message: "test message"})
+	if err != nil {
+		logger.WithError(err).Debug("Error Send notification")
+	}
 
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
