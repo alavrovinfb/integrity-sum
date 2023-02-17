@@ -27,7 +27,6 @@ type DeploymentData struct {
 	NamePod              string
 	Timestamp            string
 	NameDeployment       string
-	LabelMainProcessName string
 	ReleaseName          string
 }
 

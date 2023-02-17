@@ -23,8 +23,6 @@ const (
 	procDir                = "/proc"
 	durationTime           = 30 * time.Second
 	algorithm              = "SHA256"
-	configMapNameForHasher = "integrity-sum-config"
-	mainProcessName        = "main-process-name"
 	procToMonitor          = "sh" // just a placeholder must be set
 	pathToMonitor          = "/"
 )
@@ -35,8 +33,6 @@ func init() {
 	fsSum.Duration("duration-time", durationTime, "specific interval of time repeatedly for ticker")
 	fsSum.Int("count-workers", runtime.NumCPU(), "number of running workers in the workerpool")
 	fsSum.String("algorithm", algorithm, "hashing algorithm for hashing data")
-	fsSum.String("cm-name", configMapNameForHasher, "name of configMap for hasher")
-	fsSum.String("main-process-name", mainProcessName, "the name of the main process to be monitored by the hasher")
 	fsSum.String("process", procToMonitor, "the name of the process to be monitored by the hasher")
 	fsSum.String("monitoring-path", pathToMonitor, "the service path to be monitored by the hasher")
 	pflag.CommandLine.AddFlagSet(fsSum)

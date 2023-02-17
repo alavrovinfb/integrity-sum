@@ -35,6 +35,35 @@ func (m *MockIAppRepository) EXPECT() *MockIAppRepositoryMockRecorder {
 	return m.recorder
 }
 
+// DeleteFromTable mocks base method.
+func (m *MockIAppRepository) DeleteFromTable(nameDeployment string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteFromTable", nameDeployment)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteFromTable indicates an expected call of DeleteFromTable.
+func (mr *MockIAppRepositoryMockRecorder) DeleteFromTable(nameDeployment interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFromTable", reflect.TypeOf((*MockIAppRepository)(nil).DeleteFromTable), nameDeployment)
+}
+
+// GetHashData mocks base method.
+func (m *MockIAppRepository) GetHashData(dirFiles, algorithm string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetHashData", dirFiles, algorithm, deploymentData)
+	ret0, _ := ret[0].([]*models.HashDataFromDB)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetHashData indicates an expected call of GetHashData.
+func (mr *MockIAppRepositoryMockRecorder) GetHashData(dirFiles, algorithm, deploymentData interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHashData", reflect.TypeOf((*MockIAppRepository)(nil).GetHashData), dirFiles, algorithm, deploymentData)
+}
+
 // IsExistDeploymentNameInDB mocks base method.
 func (m *MockIAppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, error) {
 	m.ctrl.T.Helper()
@@ -50,60 +79,8 @@ func (mr *MockIAppRepositoryMockRecorder) IsExistDeploymentNameInDB(deploymentNa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsExistDeploymentNameInDB", reflect.TypeOf((*MockIAppRepository)(nil).IsExistDeploymentNameInDB), deploymentName)
 }
 
-// MockIHashRepository is a mock of IHashRepository interface.
-type MockIHashRepository struct {
-	ctrl     *gomock.Controller
-	recorder *MockIHashRepositoryMockRecorder
-}
-
-// MockIHashRepositoryMockRecorder is the mock recorder for MockIHashRepository.
-type MockIHashRepositoryMockRecorder struct {
-	mock *MockIHashRepository
-}
-
-// NewMockIHashRepository creates a new mock instance.
-func NewMockIHashRepository(ctrl *gomock.Controller) *MockIHashRepository {
-	mock := &MockIHashRepository{ctrl: ctrl}
-	mock.recorder = &MockIHashRepositoryMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockIHashRepository) EXPECT() *MockIHashRepositoryMockRecorder {
-	return m.recorder
-}
-
-// DeleteFromTable mocks base method.
-func (m *MockIHashRepository) DeleteFromTable(nameDeployment string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteFromTable", nameDeployment)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteFromTable indicates an expected call of DeleteFromTable.
-func (mr *MockIHashRepositoryMockRecorder) DeleteFromTable(nameDeployment interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFromTable", reflect.TypeOf((*MockIHashRepository)(nil).DeleteFromTable), nameDeployment)
-}
-
-// GetHashData mocks base method.
-func (m *MockIHashRepository) GetHashData(dirFiles, algorithm string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetHashData", dirFiles, algorithm, deploymentData)
-	ret0, _ := ret[0].([]*models.HashDataFromDB)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetHashData indicates an expected call of GetHashData.
-func (mr *MockIHashRepositoryMockRecorder) GetHashData(dirFiles, algorithm, deploymentData interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHashData", reflect.TypeOf((*MockIHashRepository)(nil).GetHashData), dirFiles, algorithm, deploymentData)
-}
-
 // SaveHashData mocks base method.
-func (m *MockIHashRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
+func (m *MockIAppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveHashData", allHashData, deploymentData)
 	ret0, _ := ret[0].(error)
@@ -111,7 +88,7 @@ func (m *MockIHashRepository) SaveHashData(allHashData []*api.HashData, deployme
 }
 
 // SaveHashData indicates an expected call of SaveHashData.
-func (mr *MockIHashRepositoryMockRecorder) SaveHashData(allHashData, deploymentData interface{}) *gomock.Call {
+func (mr *MockIAppRepositoryMockRecorder) SaveHashData(allHashData, deploymentData interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveHashData", reflect.TypeOf((*MockIHashRepository)(nil).SaveHashData), allHashData, deploymentData)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveHashData", reflect.TypeOf((*MockIAppRepository)(nil).SaveHashData), allHashData, deploymentData)
 }
