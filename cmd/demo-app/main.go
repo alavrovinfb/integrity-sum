@@ -4,33 +4,36 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-
 	"github.com/integrity-sum/internal/core/services"
 	"github.com/integrity-sum/internal/repositories"
 	"github.com/integrity-sum/pkg/api"
 	logConfig "github.com/integrity-sum/pkg/logger"
-)
-
-var (
-	dirPath   string
-	algorithm string
-	doHelp    bool
-	verbose   int
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+	"os"
+	"os/signal"
+	"runtime"
 )
 
 // Initializes the binding of the flag to a variable that must run before the main() function
 func init() {
-	flag.StringVar(&dirPath, "d", "", "a specific file or directory")
-	flag.StringVar(&algorithm, "a", "SHA256", "algorithm MD5, SHA1, SHA224, SHA256, SHA384, SHA512, default: SHA256")
-	flag.BoolVar(&doHelp, "h", false, "help")
-	flag.IntVar(&verbose, "v", 5, "verbose level")
+	fsLog := pflag.NewFlagSet("log", pflag.ContinueOnError)
+	fsLog.Int("verbose", 5, "verbose level")
+	fsSum := pflag.NewFlagSet("sum", pflag.ContinueOnError)
+	fsSum.Int("count-workers", runtime.NumCPU(), "number of running workers in the workerpool")
+	fsSum.String("algorithm", "SHA256", "algorithm MD5, SHA1, SHA224, SHA256, SHA384, SHA512, default: SHA256")
+	fsSum.String("dirPath", "./", "name of configMap for hasher")
+	fsSum.Bool("doHelp", false, "help")
+	if err := viper.BindPFlags(fsSum); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 func main() {
-	flag.Parse()
-	logger := logConfig.InitLogger(verbose)
+	pflag.Parse()
+	// Install logger
+	logger := logConfig.InitLogger(viper.GetInt("verbose"))
 
 	// Install context and signal
 	ctx := context.Background()
@@ -44,7 +47,7 @@ func main() {
 	}()
 
 	switch {
-	case doHelp:
+	case viper.GetBool("doHelp"):
 		flag.Usage = func() {
 			fmt.Fprintf(os.Stderr, "Custom help %s:\nYou can use the following flag:\n", os.Args[0])
 
@@ -53,8 +56,8 @@ func main() {
 			})
 		}
 		flag.Usage()
-	case len(dirPath) > 0:
-		//connection to database
+	case len(viper.GetString("dirPath")) > 0:
+		//Connection to database
 		db, err := repositories.ConnectionToDB(logger)
 		if err != nil {
 			logger.Fatalf("can't connect to database: %s", err)
@@ -64,13 +67,13 @@ func main() {
 		repository := repositories.NewAppRepository(logger, db)
 
 		// Initialize service
-		service := services.NewAppService(repository, algorithm, logger)
+		service := services.NewAppService(repository, viper.GetString("algorithm"), logger)
 
 		jobs := make(chan string)
 		results := make(chan *api.HashData)
 
 		go service.WorkerPool(jobs, results)
-		go api.SearchFilePath(dirPath, jobs, logger)
+		go api.SearchFilePath(viper.GetString("dirPath"), jobs, logger)
 		for {
 			select {
 			case hashData, ok := <-results:
