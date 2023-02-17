@@ -31,6 +31,7 @@ func init() {
 }
 
 func main() {
+	pflag.Parse()
 	// Install logger
 	logger := logConfig.InitLogger(viper.GetInt("verbose"))
 
