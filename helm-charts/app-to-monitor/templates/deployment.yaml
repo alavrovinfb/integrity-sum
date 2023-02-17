@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{.Release.Name}}-{{ .Values.metadata.deploymentName }}
+  name: {{ .Release.Name }}-{{ .Values.metadata.deploymentName }}
   labels:
     app: {{ .Values.metadata.appName }}
 spec:
@@ -20,30 +20,40 @@ spec:
         app: {{ .Values.metadata.appName }}
       annotations:
         integrity-monitor.scnsoft.com/inject: "true"
-        integrity-monitor.scnsoft.com/process: nginx
-        integrity-monitor.scnsoft.com/monitoring-path: etc/nginx
+        integrity-monitor.scnsoft.com/process: {{ .Values.configMap.processName }}
+        integrity-monitor.scnsoft.com/monitoring-path: {{ .Values.configMap.mountPath }}
     spec:
-      serviceAccountName: {{.Release.Name}}-{{ .Values.serviceAccount }}
+      serviceAccountName: {{ .Release.Name }}-{{ .Values.serviceAccount }}
       shareProcessNamespace: true
       containers:
         - name: {{ .Values.container.name }}
           image: {{ .Values.container.image }}
+          imagePullPolicy: IfNotPresent
           stdin: true
           tty: true
 
         - name: {{ .Values.containerSidecar.name }}
           image: {{ .Values.containerSidecar.image }}
-          imagePullPolicy: Never
-          envFrom:
-            - secretRef:
-                name: {{ .Values.releaseNameDB }}-{{ .Values.secretNameDB}} # Name of the secret environmental variable file to load from database
+          imagePullPolicy: IfNotPresent
           env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.releaseNameDB }}-postgresql
+                  key: password
             - name: POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
             - name: DEPLOYMENT_TYPE
               value: deployment
+          args:
+            - --db-host={{ .Values.releaseNameDB }}-postgresql
+            - --db-port={{ .Values.db.port }}
+            - --db-name={{ .Values.db.database }}
+            - --db-user={{ .Values.db.username }}
+            - --process={{ .Values.configMap.processName }}
+            - --monitoring-path={{ .Values.configMap.mountPath }}
           resources:
             limits:
               cpu: "1"

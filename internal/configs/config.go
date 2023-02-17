@@ -3,6 +3,8 @@ package configs
 import (
 	"fmt"
 	"os"
+	"runtime"
+	"time"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -18,7 +20,37 @@ const (
 	dbConnectionTimeout = 10
 )
 
+const (
+	procDir       = "/proc"
+	durationTime  = 30 * time.Second
+	algorithm     = "SHA256"
+	procToMonitor = "sh" // just a placeholder must be set
+	pathToMonitor = "/"
+)
+
 func init() {
+	fsLog := pflag.NewFlagSet("log", pflag.ContinueOnError)
+	fsLog.Int("verbose", 5, "verbose level")
+	pflag.CommandLine.AddFlagSet(fsLog)
+	if err := viper.BindPFlags(fsLog); err != nil {
+		fmt.Printf("error binding flags: %v", err)
+		os.Exit(2)
+		return
+	}
+
+	fsSum := pflag.NewFlagSet("sum", pflag.ContinueOnError)
+	fsSum.String("proc-dir", procDir, "path to /proc")
+	fsSum.Duration("duration-time", durationTime, "specific interval of time repeatedly for ticker")
+	fsSum.Int("count-workers", runtime.NumCPU(), "number of running workers in the workerpool")
+	fsSum.String("algorithm", algorithm, "hashing algorithm for hashing data")
+	fsSum.String("process", procToMonitor, "the name of the process to be monitored by the hasher")
+	fsSum.String("monitoring-path", pathToMonitor, "the service path to be monitored by the hasher")
+	pflag.CommandLine.AddFlagSet(fsSum)
+	if err := viper.BindPFlags(fsSum); err != nil {
+		fmt.Printf("error binding flags: %v", err)
+		os.Exit(1)
+	}
+
 	fsDB := pflag.NewFlagSet("db", pflag.ContinueOnError)
 	fsDB.String("db-host", dbHost, "DB host")
 	fsDB.Int("db-port", dbPort, "DB port")
@@ -28,7 +60,7 @@ func init() {
 	fsDB.Int("db-connection-timeout", dbConnectionTimeout, "DB connection timeout")
 	pflag.CommandLine.AddFlagSet(fsDB)
 	if err := viper.BindPFlags(fsDB); err != nil {
-		fmt.Println(err)
+		fmt.Printf("error binding flags: %v", err)
 		os.Exit(1)
 	}
 
