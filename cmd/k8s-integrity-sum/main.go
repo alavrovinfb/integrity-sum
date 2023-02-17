@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 
@@ -14,21 +13,14 @@ import (
 	logConfig "github.com/integrity-sum/pkg/logger"
 )
 
-func init() {
-	fsLog := pflag.NewFlagSet("log", pflag.ContinueOnError)
-	fsLog.Int("v", 5, "verbose level")
-	pflag.CommandLine.AddFlagSet(fsLog)
-	if err := viper.BindPFlags(fsLog); err != nil {
-		fmt.Printf("error binding flags: %v", err)
-		os.Exit(2)
-		return
-	}
-}
-
 func main() {
+	// Install config
 	initConfig()
-	logger := logConfig.InitLogger(viper.GetInt("v"))
 
+	// Install logger
+	logger := logConfig.InitLogger(viper.GetInt("verbose"))
+
+	// Install migration
 	DBMigration(logger)
 
 	// Handling shutdown signals
