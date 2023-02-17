@@ -1,14 +1,20 @@
-BINARY_NAME=integritySum
 VERSION_MOCKGEN=v1.6.0
 ## You can change these values
 RELEASE_NAME_DB=db
 RELEASE_NAME_APP=app
 
+GIT_COMMIT := $(shell git describe --tags --dirty=-unsupported --always || echo pre-commit)
+IMAGE_VERSION ?= $(GIT_COMMIT)
+
+BINARY_NAME=integritySum
+IMAGE_NAME?=integrity
+FULL_IMAGE_NAME=$(IMAGE_NAME):$(IMAGE_VERSION)
+
 # helm chart path
 HELM_CHART_DB = helm-charts/database-to-integrity-sum
 HELM_CHART_APP = helm-charts/app-to-monitor
 
-DB_SECRET_NAME ?= secret-database-to-integrity-sum
+DB_SECRET_NAME ?= $(IMAGE_NAME)
 
 ## Runs all of the required cleaning and verification targets.
 .PHONY : all
@@ -32,9 +38,8 @@ generate:
 ## Runs the test suite with mocks enabled.
 .PHONY : test
 test: generate
-	go test -v internal/core/services/hash_test.go
-	cd pkg/hasher ;\
-	go test
+	go test -v ./internal/core/services/hash_test.go
+	go test -v ./pkg/hasher
 
 ## Downloads the necessesary dev dependencies.
 .PHONY : dev-dependencies
@@ -46,40 +51,47 @@ dev-dependencies: minikube update docker helm-all
 minikube:
 	minikube start
 
-# SECRET_DB="$$(grep 'secretName' $(HELM_CHART_DB)/values.yaml | cut -d':' -f2 | tr -d '[:space:]')"
-# SECRET_HASHER="$$(grep 'secretNameDB' helm-charts/app-to-monitor/values.yaml | cut -d':' -f2 | tr -d '[:space:]')"
-# VALUE_RELEASE_NAME_APP="$$(grep 'releaseNameDB' helm-charts/app-to-monitor/values.yaml | cut -d':' -f2 | tr -d '[:space:]')"
-# .PHONY: update
-# update:
-# 	sed -i "s/${SECRET_HASHER}/${SECRET_DB}/" helm-charts/app-to-monitor/values.yaml >> helm-charts/app-to-monitor/values.yaml
-# 	sed -i "s/${VALUE_RELEASE_NAME_APP}/${RELEASE_NAME_DB}/" helm-charts/app-to-monitor/values.yaml >> helm-charts/app-to-monitor/values.yaml
-
 .PHONY : docker
 docker:
 	@eval $$(minikube docker-env) ;\
-    docker image build -t hasher:latest -f Dockerfile .
+    docker image build -t $(FULL_IMAGE_NAME) .
 
 .PHONY : helm-all
 helm-all: helm-database helm-app
 
 helm-database:
-	@helm dependency update $(HELM_CHART_DB)
+	# @helm dependency update $(HELM_CHART_DB)
 	@helm upgrade -i ${RELEASE_NAME_DB} \
-		--set postgresql.auth.database=$(DB_NAME) \
-		--set postgresql.auth.username=$(DB_USER) \
-		--set postgresql.auth.password=$(DB_PASSWORD) \
-		--set-string secretName=$(DB_SECRET_NAME) \
+		--set global.postgresql.auth.database=$(DB_NAME) \
+		--set global.postgresql.auth.username=$(DB_USER) \
+		--set global.postgresql.auth.password=$(DB_PASSWORD) \
+		--set secretName=$(DB_SECRET_NAME) \
 		$(HELM_CHART_DB)
 
 helm-app:
 	@helm upgrade -i ${RELEASE_NAME_APP} \
-		--set releaseNameDB=$(DB_NAME) \
+		--set releaseNameDB=$(RELEASE_NAME_DB) \
 		--set secretNameDB=$(DB_SECRET_NAME) \
+		--set db.database=$(DB_NAME) \
+		--set db.username=$(DB_USER) \
+		--set db.password=$(DB_PASSWORD) \
+		--set containerSidecar.name=$(IMAGE_NAME) \
+		--set containerSidecar.image=$(FULL_IMAGE_NAME) \
 		$(HELM_CHART_APP)
 
 .PHONY: kind-load-images
 kind-load-images:
 	kind load docker-image hasher:latest
+	@kind load docker-image $(FULL_IMAGE_NAME)
+
+DB_PVC_NAME=$(shell kubectl get pvc | grep data-$(RELEASE_NAME_DB)-postgresql | cut -d " " -f1)
+
+.PHONY: purge-db uninstall-db
+purge-db: uninstall-db
+	@-kubectl delete pvc $(DB_PVC_NAME)
+
+uninstall-db:
+	@-helm uninstall ${RELEASE_NAME_DB}
 
 .PHONY : tidy
 tidy: ## Cleans the Go module.
@@ -88,11 +100,10 @@ tidy: ## Cleans the Go module.
 
 .PHONY : build
 build:
-	go build -o ${BINARY_NAME} cmd/k8s-integrity-sum/main.go
+	go build -o ${BINARY_NAME} ./cmd/k8s-integrity-sum
 
 .PHONY : run
-run:
-	go build -o ${BINARY_NAME} cmd/k8s-integrity-sum/main.go
+run: build
 	./${BINARY_NAME}
 
 ## Remove an installed Helm deployment and stop minikube.
