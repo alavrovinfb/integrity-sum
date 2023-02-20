@@ -70,6 +70,19 @@ func init() {
 	viper.BindEnv("db-user", "DB_USER")
 	viper.BindEnv("db-password", "DB_PASSWORD")
 	viper.BindEnv("db-connection-timeout", "DB_CONNECTION_TIMEOUT")
+
+	fsSp := pflag.NewFlagSet("splunk", pflag.ContinueOnError)
+	fsSp.String("splunk-url", "", "Splunk HTTP Events Collector URL")
+	fsSp.String("splunk-token", "", "Splunk HTTP Events Collector Token")
+	fsSp.Bool("splunk-insecure-skip-verify", false, "Splunk HTTP Events Collector URL skip certificate verification")
+	pflag.CommandLine.AddFlagSet(fsSp)
+	if err := viper.BindPFlags(fsSp); err != nil {
+		fmt.Printf("error binding flags: %v", err)
+		os.Exit(1)
+	}
+	viper.BindEnv("splunk-url", "SPLUNK_URL")
+	viper.BindEnv("splunk-token", "SPLUNK_TOKEN")
+	viper.BindEnv("splunk-insecure-skip-verify", "SPLUNK_INSECURE_SKIP_VERIFY")
 }
 
 func GetDBConnString() string {

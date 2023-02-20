@@ -23,6 +23,9 @@ configMap:
   name: integrity-sum-config
   processName: nginx # Container process name
   mountPath: etc/nginx # Tracdb5ed folder path
+  splunkUrl: "" # url to send events https://splunk:8088/services/collector/event
+  splunkToken: ""
+  splunkInsecureSkipVerify: true
 
 releaseNameDB: ""
 
