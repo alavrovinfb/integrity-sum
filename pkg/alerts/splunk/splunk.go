@@ -1,4 +1,4 @@
-package splunkclient
+package splunk
 
 import (
 	"bytes"
@@ -8,12 +8,14 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/integrity-sum/pkg/notification"
+	"github.com/integrity-sum/pkg/alerts"
 	"github.com/sirupsen/logrus"
 )
 
 type event struct {
-	Message string
+	Message string `json:"message"`
+	Reason  string `json:"reason"`
+	Path    string `json:"path"`
 }
 
 type eventHolder struct {
@@ -25,10 +27,10 @@ type splunkClient struct {
 	logger *logrus.Logger
 	client *http.Client
 	uri    string
-	token  string
+	auth   string
 }
 
-func New(logger *logrus.Logger, uri string, token string, insecureSkipVerify bool) notification.Notifier {
+func New(logger *logrus.Logger, uri string, token string, insecureSkipVerify bool) alerts.Sender {
 	transCfg := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
 	}
@@ -38,18 +40,13 @@ func New(logger *logrus.Logger, uri string, token string, insecureSkipVerify boo
 		logger: logger,
 		client: client,
 		uri:    uri,
-		token:  token,
+		auth:   fmt.Sprintf("Splunk %v", token),
 	}
 }
 
-func (c *splunkClient) Send(msg notification.Message) error {
+func (c *splunkClient) Send(alert alerts.Alert) error {
 
-	eh := eventHolder{
-		Time: float64(msg.Time.UnixNano()) / 1e9,
-		Event: event{
-			Message: msg.Message,
-		},
-	}
+	eh := eventFromAlert(alert)
 
 	data, err := json.Marshal(eh)
 	if err != nil {
@@ -60,6 +57,8 @@ func (c *splunkClient) Send(msg notification.Message) error {
 	if err != nil {
 		return err
 	}
+	req.Header.Add("Authorization", c.auth)
+
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return err
@@ -76,11 +75,22 @@ func (c *splunkClient) Send(msg notification.Message) error {
 		return err
 	}
 
-	c.logger.WithField("body", string(respData)).WithField("Status", resp.StatusCode).Debug("Response received")
-
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	}
 
+	c.logger.WithField("body", string(respData)).WithField("Status", resp.StatusCode).Error("Failed send alert to splunk")
+
 	return fmt.Errorf("failed send message: invalid status code")
+}
+
+func eventFromAlert(alert alerts.Alert) eventHolder {
+	return eventHolder{
+		Time: float64(alert.Time.UnixNano()) / 1e9,
+		Event: event{
+			Message: alert.Message,
+			Reason:  alert.Reason,
+			Path:    alert.Path,
+		},
+	}
 }

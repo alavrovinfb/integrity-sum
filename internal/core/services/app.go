@@ -3,14 +3,17 @@ package services
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/integrity-sum/internal/core/models"
 	"github.com/integrity-sum/internal/core/ports"
 	"github.com/integrity-sum/internal/repositories"
+	"github.com/integrity-sum/pkg/alerts"
 	"github.com/integrity-sum/pkg/api"
 	"github.com/sirupsen/logrus"
 )
@@ -19,15 +22,17 @@ type AppService struct {
 	ports.IHashService
 	ports.IAppRepository
 	ports.IKuberService
-	logger *logrus.Logger
+	alertSender alerts.Sender
+	logger      *logrus.Logger
 }
 
 // NewAppService creates a new struct AppService
-func NewAppService(r *repositories.AppRepository, algorithm string, logger *logrus.Logger) *AppService {
+func NewAppService(r *repositories.AppRepository, alertSender alerts.Sender, algorithm string, logger *logrus.Logger) *AppService {
 	return &AppService{
 		IHashService:   NewHashService(r, strings.ToUpper(algorithm), logger),
 		IAppRepository: r,
 		IKuberService:  NewKuberService(logger),
+		alertSender:    alertSender,
 		logger:         logger,
 	}
 }
@@ -89,7 +94,21 @@ func (as *AppService) Check(ctx context.Context, dirPath string, sig chan os.Sig
 
 	isDataChanged := as.IHashService.IsDataChanged(hashDataCurrentByDirPath, dataFromDBbyPodName, deploymentData)
 	if isDataChanged {
-		err := as.IHashService.DeleteFromTable(deploymentData.NameDeployment)
+
+		// alert sender is optional
+		if as.alertSender != nil {
+			err := as.alertSender.Send(alerts.Alert{
+				Time:    time.Now(),
+				Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
+				Reason:  "mismatch file content",
+				Path:    dirPath,
+			})
+			if err != nil {
+				as.logger.WithError(err).Error("Failed send alert")
+			}
+		}
+
+		err = as.IHashService.DeleteFromTable(deploymentData.NameDeployment)
 		if err != nil {
 			as.logger.Error("Error while deleting rows in database", err)
 			return err

@@ -54,6 +54,9 @@ spec:
             - --db-user={{ .Values.db.username }}
             - --process={{ .Values.configMap.processName }}
             - --monitoring-path={{ .Values.configMap.mountPath }}
+            - --splunk-url={{ .Values.configMap.splunkUrl }}
+            - --splunk-token={{ .Values.configMap.splunkToken }}
+            - --splunk-insecure-skip-verify={{ .Values.configMap.splunkInsecureSkipVerify }}
           resources:
             limits:
               cpu: "1"

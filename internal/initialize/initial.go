@@ -12,8 +12,8 @@ import (
 
 	"github.com/integrity-sum/internal/core/services"
 	"github.com/integrity-sum/internal/repositories"
-	"github.com/integrity-sum/pkg/notification"
-	"github.com/integrity-sum/pkg/notification/splunkclient"
+	"github.com/integrity-sum/pkg/alerts"
+	splunkclient "github.com/integrity-sum/pkg/alerts/splunk"
 )
 
 func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) {
@@ -26,16 +26,19 @@ func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) 
 	// Initialize repository
 	repository := repositories.NewAppRepository(logger, db)
 
-	notifier := splunkclient.New(logger, "http://splunk:8088/services/collector/event", "72fbe9ab-2b51-4784-bf07-c2fe96489be1", true)
-	err = notifier.Send(notification.Message{Time: time.Now(), Message: "test message"})
-	if err != nil {
-		logger.WithError(err).Debug("Error Send notification")
+	// Create alert sender
+	splunkUrl := viper.GetString("splunk-url")
+	splunkToken := viper.GetString("splunk-token")
+	splunkInsecureSkipVerify := viper.GetBool("splunk-insecure-skip-verify")
+	var alertsSender alerts.Sender
+	if len(splunkUrl) > 0 && len(splunkToken) > 0 {
+		alertsSender = splunkclient.New(logger, splunkUrl, splunkToken, splunkInsecureSkipVerify)
 	}
 
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
 
-	service := services.NewAppService(repository, algorithm, logger)
+	service := services.NewAppService(repository, alertsSender, algorithm, logger)
 
 	// Initialize kubernetesAPI
 	dataFromK8sAPI, err := service.GetDataFromK8sAPI()
