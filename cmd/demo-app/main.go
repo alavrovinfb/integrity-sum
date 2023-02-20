@@ -4,15 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"runtime"
+
 	"github.com/integrity-sum/internal/core/services"
 	"github.com/integrity-sum/internal/repositories"
 	"github.com/integrity-sum/pkg/api"
 	logConfig "github.com/integrity-sum/pkg/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"os"
-	"os/signal"
-	"runtime"
 )
 
 // Initializes the binding of the flag to a variable that must run before the main() function
@@ -67,7 +68,7 @@ func main() {
 		repository := repositories.NewAppRepository(logger, db)
 
 		// Initialize service
-		service := services.NewAppService(repository, viper.GetString("algorithm"), logger)
+		service := services.NewAppService(repository, nil, viper.GetString("algorithm"), logger)
 
 		jobs := make(chan string)
 		results := make(chan *api.HashData)
