@@ -3,7 +3,7 @@ VERSION_MOCKGEN=v1.6.0
 RELEASE_NAME_DB=db
 RELEASE_NAME_APP=app
 
-GIT_COMMIT := $(shell git describe --tags --dirty=-unsupported --always || echo pre-commit)
+GIT_COMMIT := $(shell git describe --tags --long --dirty=-unsupported --always || echo pre-commit)
 IMAGE_VERSION ?= $(GIT_COMMIT)
 
 BINARY_NAME=integritySum
@@ -54,7 +54,7 @@ minikube:
 .PHONY : docker
 docker:
 	@eval $$(minikube docker-env) ;\
-    docker image build -t $(FULL_IMAGE_NAME) .
+    docker image build -t $(FULL_IMAGE_NAME) -t $(IMAGE_NAME):latest .
 
 .PHONY : helm-all
 helm-all: helm-database helm-app

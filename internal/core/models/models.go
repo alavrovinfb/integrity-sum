@@ -23,11 +23,11 @@ type KuberData struct {
 }
 
 type DeploymentData struct {
-	Image                string
-	NamePod              string
-	Timestamp            string
-	NameDeployment       string
-	ReleaseName          string
+	Image          string
+	NamePod        string
+	Timestamp      string
+	NameDeployment string
+	ReleaseName    string
 }
 
 type DataFromK8sAPI struct {

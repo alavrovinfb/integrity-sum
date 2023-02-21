@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/integrity-sum/internal/initialize"
-	logConfig "github.com/integrity-sum/pkg/logger"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/initialize"
+	logConfig "github.com/ScienceSoft-Inc/integrity-sum/pkg/logger"
 )
 
 func main() {

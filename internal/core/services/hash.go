@@ -11,10 +11,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	"github.com/integrity-sum/internal/core/models"
-	"github.com/integrity-sum/internal/core/ports"
-	"github.com/integrity-sum/pkg/api"
-	"github.com/integrity-sum/pkg/hasher"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/hasher"
 )
 
 type HashService struct {

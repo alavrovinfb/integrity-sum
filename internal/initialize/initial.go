@@ -10,10 +10,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	"github.com/integrity-sum/internal/core/services"
-	"github.com/integrity-sum/internal/repositories"
-	"github.com/integrity-sum/pkg/alerts"
-	splunkclient "github.com/integrity-sum/pkg/alerts/splunk"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
+	splunkclient "github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
 )
 
 func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) {

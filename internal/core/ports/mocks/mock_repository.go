@@ -7,9 +7,9 @@ package mock_ports
 import (
 	reflect "reflect"
 
+	models "github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	api "github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 	gomock "github.com/golang/mock/gomock"
-	models "github.com/integrity-sum/internal/core/models"
-	api "github.com/integrity-sum/pkg/api"
 )
 
 // MockIAppRepository is a mock of IAppRepository interface.

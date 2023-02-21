@@ -8,12 +8,13 @@ import (
 	"os/signal"
 	"runtime"
 
-	"github.com/integrity-sum/internal/core/services"
-	"github.com/integrity-sum/internal/repositories"
-	"github.com/integrity-sum/pkg/api"
-	logConfig "github.com/integrity-sum/pkg/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
+	logConfig "github.com/ScienceSoft-Inc/integrity-sum/pkg/logger"
 )
 
 // Initializes the binding of the flag to a variable that must run before the main() function

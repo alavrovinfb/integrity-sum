@@ -8,8 +8,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/integrity-sum/pkg/alerts"
 	"github.com/sirupsen/logrus"
+
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 )
 
 type event struct {
