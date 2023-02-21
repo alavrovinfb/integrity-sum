@@ -3,9 +3,10 @@ package repositories
 import (
 	"database/sql"
 
-	"github.com/integrity-sum/internal/core/models"
-	"github.com/integrity-sum/pkg/api"
 	"github.com/sirupsen/logrus"
+
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
 type AppRepository struct {

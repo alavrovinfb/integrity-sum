@@ -10,12 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/integrity-sum/internal/core/models"
-	"github.com/integrity-sum/internal/core/ports"
-	"github.com/integrity-sum/internal/repositories"
-	"github.com/integrity-sum/pkg/alerts"
-	"github.com/integrity-sum/pkg/api"
 	"github.com/sirupsen/logrus"
+
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
 type AppService struct {

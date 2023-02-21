@@ -6,7 +6,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 
-	"github.com/integrity-sum/internal/configs"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
 )
 
 func ConnectionToDB(logger *logrus.Logger) (*sql.DB, error) {

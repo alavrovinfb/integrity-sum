@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/integrity-sum/internal/core/models"
-	mock_ports "github.com/integrity-sum/internal/core/ports/mocks"
-	"github.com/integrity-sum/pkg/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	mock_ports "github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports/mocks"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
 func TestCreateHash(t *testing.T) {

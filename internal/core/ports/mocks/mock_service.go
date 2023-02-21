@@ -10,9 +10,9 @@ import (
 	reflect "reflect"
 	sync "sync"
 
+	models "github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	api "github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 	gomock "github.com/golang/mock/gomock"
-	models "github.com/integrity-sum/internal/core/models"
-	api "github.com/integrity-sum/pkg/api"
 )
 
 // MockIAppService is a mock of IAppService interface.

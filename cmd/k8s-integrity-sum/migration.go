@@ -6,7 +6,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/sirupsen/logrus"
 
-	"github.com/integrity-sum/internal/configs"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
 )
 
 const defaultDBMigrationPath = "file://db/migrations"

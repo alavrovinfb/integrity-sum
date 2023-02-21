@@ -5,8 +5,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/integrity-sum/internal/core/models"
-	"github.com/integrity-sum/pkg/api"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
 //go:generate mockgen -source=service.go -destination=mocks/mock_service.go

@@ -4,8 +4,8 @@ container:
   image: nginx:latest # Container image that you deploy to the cluster
 
 containerSidecar:
-  name: hasher # Container name
-  image: hasher:latest # Container image that you deploy to the cluster
+  name: integrity # Container name
+  image: integrity:latest # Container image that you deploy to the cluster
 
 # Name and identifier variables
 metadata:
@@ -29,7 +29,7 @@ configMap:
 
 releaseNameDB: ""
 
-# The DB connection data. Should be overrided by actual values
+# The DB connection data. Should be overridden by actual values
 db:
   port: 5432
   database: ""

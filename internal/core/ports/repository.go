@@ -1,8 +1,8 @@
 package ports
 
 import (
-	"github.com/integrity-sum/internal/core/models"
-	"github.com/integrity-sum/pkg/api"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
 //go:generate mockgen -source=repository.go -destination=mocks/mock_repository.go
