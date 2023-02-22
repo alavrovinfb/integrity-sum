@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -52,12 +51,12 @@ func (as *AppService) GetPID(procName string) (pid int, err error) {
 }
 
 // LaunchHasher takes a path to a directory and returns HashData
-func (as *AppService) LaunchHasher(ctx context.Context, dirPath string, sig chan os.Signal) []*api.HashData {
+func (as *AppService) LaunchHasher(ctx context.Context, dirPath string) []*api.HashData {
 	jobs := make(chan string)
 	results := make(chan *api.HashData)
 	go as.IHashService.WorkerPool(jobs, results)
 	go api.SearchFilePath(dirPath, jobs, as.logger)
-	allHashData := api.Result(ctx, results, sig)
+	allHashData := api.Result(ctx, results)
 
 	return allHashData
 }
@@ -72,8 +71,8 @@ func (as *AppService) IsExistDeploymentNameInDB(deploymentName string) bool {
 }
 
 // Start getting the hash sum of all files, outputs to os.Stdout and saves to the database
-func (as *AppService) Start(ctx context.Context, dirPath string, sig chan os.Signal, deploymentData *models.DeploymentData) error {
-	allHashData := as.LaunchHasher(ctx, dirPath, sig)
+func (as *AppService) Start(ctx context.Context, dirPath string, deploymentData *models.DeploymentData) error {
+	allHashData := as.LaunchHasher(ctx, dirPath)
 	err := as.IHashService.SaveHashData(allHashData, deploymentData)
 	if err != nil {
 		as.logger.Error("Error save hash data to database ", err)
@@ -84,8 +83,8 @@ func (as *AppService) Start(ctx context.Context, dirPath string, sig chan os.Sig
 }
 
 // Check getting the hash sum of all files, matches them and outputs to os.Stdout changes
-func (as *AppService) Check(ctx context.Context, dirPath string, sig chan os.Signal, deploymentData *models.DeploymentData, kuberData *models.KuberData) error {
-	hashDataCurrentByDirPath := as.LaunchHasher(ctx, dirPath, sig)
+func (as *AppService) Check(ctx context.Context, dirPath string, deploymentData *models.DeploymentData, kuberData *models.KuberData) error {
+	hashDataCurrentByDirPath := as.LaunchHasher(ctx, dirPath)
 
 	dataFromDBbyPodName, err := as.IHashService.GetHashData(dirPath, deploymentData)
 	if err != nil {
