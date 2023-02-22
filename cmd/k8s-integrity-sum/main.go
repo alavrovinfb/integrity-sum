@@ -22,7 +22,7 @@ func main() {
 	DBMigration(logger)
 
 	// Run Application with graceful shutdown context
-	graceful.Execute(context.Background(), func(ctx context.Context) {
+	graceful.Execute(context.Background(), logger, func(ctx context.Context) {
 		initialize.Initialize(ctx, logger)
 	})
 }

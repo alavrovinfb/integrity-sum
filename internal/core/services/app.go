@@ -55,7 +55,7 @@ func (as *AppService) LaunchHasher(ctx context.Context, dirPath string) []*api.H
 	jobs := make(chan string)
 	results := make(chan *api.HashData)
 	go as.IHashService.WorkerPool(jobs, results)
-	go api.SearchFilePath(dirPath, jobs, as.logger)
+	go api.SearchFilePath(ctx, dirPath, jobs, as.logger)
 	allHashData := api.Result(ctx, results)
 
 	return allHashData

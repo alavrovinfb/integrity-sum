@@ -75,7 +75,7 @@ func main() {
 		results := make(chan *api.HashData)
 
 		go service.WorkerPool(jobs, results)
-		go api.SearchFilePath(viper.GetString("dirPath"), jobs, logger)
+		go api.SearchFilePath(ctx, viper.GetString("dirPath"), jobs, logger)
 		for {
 			select {
 			case hashData, ok := <-results:
