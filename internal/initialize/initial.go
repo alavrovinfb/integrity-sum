@@ -3,7 +3,6 @@ package initialize
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 	splunkclient "github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
 )
 
-func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) {
+func Initialize(ctx context.Context, logger *logrus.Logger) {
 	// Initialize database
 	db, err := repositories.ConnectionToDB(logger)
 	if err != nil {
@@ -68,14 +67,14 @@ func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) 
 		for {
 			if !service.IsExistDeploymentNameInDB(dataFromK8sAPI.KuberData.TargetName) {
 				logger.Info("Deployment name does not exist in database, save data")
-				err = service.Start(ctx, dirPath, sig, dataFromK8sAPI.DeploymentData)
+				err = service.Start(ctx, dirPath, dataFromK8sAPI.DeploymentData)
 				if err != nil {
 					logger.Fatalf("Error when starting to get and save hash data %s", err)
 				}
 			} else {
 				logger.Info("Deployment name exists in database, checking data")
 				for range ticker.C {
-					err = service.Check(ctx, dirPath, sig, dataFromK8sAPI.DeploymentData, dataFromK8sAPI.KuberData)
+					err = service.Check(ctx, dirPath, dataFromK8sAPI.DeploymentData, dataFromK8sAPI.KuberData)
 					if err != nil {
 						logger.Fatalf("Error when starting to check hash data %s", err)
 					}

@@ -48,12 +48,13 @@ spec:
             - name: DEPLOYMENT_TYPE
               value: deployment
           args:
+            - --process={{ .Values.configMap.processName }}
+            - --monitoring-path={{ .Values.configMap.mountPath }}
+            - --verbose={{ .Values.configMap.verbose }}
             - --db-host={{ .Values.releaseNameDB }}-postgresql
             - --db-port={{ .Values.db.port }}
             - --db-name={{ .Values.db.database }}
             - --db-user={{ .Values.db.username }}
-            - --process={{ .Values.configMap.processName }}
-            - --monitoring-path={{ .Values.configMap.mountPath }}
             - --splunk-url={{ .Values.configMap.splunkUrl }}
             - --splunk-token={{ .Values.configMap.splunkToken }}
             - --splunk-insecure-skip-verify={{ .Values.configMap.splunkInsecureSkipVerify }}
