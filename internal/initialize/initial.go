@@ -14,6 +14,7 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	splunkclient "github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/syslog"
 )
 
 func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) {
@@ -30,15 +31,28 @@ func Initialize(ctx context.Context, logger *logrus.Logger, sig chan os.Signal) 
 	splunkUrl := viper.GetString("splunk-url")
 	splunkToken := viper.GetString("splunk-token")
 	splunkInsecureSkipVerify := viper.GetBool("splunk-insecure-skip-verify")
-	var alertsSender alerts.Sender
+
+	alertsRegistry := alerts.Registry{}
 	if len(splunkUrl) > 0 && len(splunkToken) > 0 {
-		alertsSender = splunkclient.New(logger, splunkUrl, splunkToken, splunkInsecureSkipVerify)
+		alertsRegistry.Add(alerts.TypeSplunk, splunkclient.New(logger, splunkUrl, splunkToken, splunkInsecureSkipVerify))
+	}
+
+	if viper.GetBool("syslog-enabled") {
+		addr := fmt.Sprintf("%s:%d", viper.GetString("syslog-host"), viper.GetInt("syslog-port"))
+		syslogSender, err := syslog.New(logger, viper.GetString("syslog-proto"), addr, syslog.DefaultPriority)
+		if err != nil {
+			logger.Fatalf("cannnot initialize sysylog client %v", err)
+		}
+		alertsRegistry.Add(alerts.TypeSyslog, syslogSender)
+		logger.Info("notification to syslog enabled")
+
+		defer syslogSender.Close()
 	}
 
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
 
-	service := services.NewAppService(repository, alertsSender, algorithm, logger)
+	service := services.NewAppService(repository, alertsRegistry, algorithm, logger)
 
 	// Initialize kubernetesAPI
 	dataFromK8sAPI, err := service.GetDataFromK8sAPI()
