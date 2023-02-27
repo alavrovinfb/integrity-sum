@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 
+	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/initialize"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"

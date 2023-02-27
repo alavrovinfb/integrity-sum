@@ -19,13 +19,19 @@ import (
 // Initializes the binding of the flag to a variable that must run before the main() function
 func init() {
 	fsLog := pflag.NewFlagSet("log", pflag.ContinueOnError)
-	fsLog.String("verbose", "info", "verbose level")
+	fsLog.StringP("verbose", "v", "info", "verbose level")
+	pflag.CommandLine.AddFlagSet(fsLog)
+	if err := viper.BindPFlags(fsLog); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
 	fsSum := pflag.NewFlagSet("sum", pflag.ContinueOnError)
 	fsSum.Int("count-workers", runtime.NumCPU(), "number of running workers in the workerpool")
 	fsSum.String("algorithm", "SHA256", "algorithm MD5, SHA1, SHA224, SHA256, SHA384, SHA512, default: SHA256")
 	fsSum.String("dirPath", "./", "name of configMap for hasher")
 	fsSum.Bool("doHelp", false, "help")
+	pflag.CommandLine.AddFlagSet(fsSum)
 	if err := viper.BindPFlags(fsSum); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -35,6 +41,7 @@ func init() {
 func main() {
 	pflag.Parse()
 	logger := logger.Init(viper.GetString("verbose"))
+
 	graceful.Execute(context.Background(), logger, func(ctx context.Context) {
 		run(ctx, logger)
 	})
@@ -66,8 +73,8 @@ func run(ctx context.Context, logger *logrus.Logger) {
 			case err := <-errChan:
 				if err != nil {
 					fmt.Printf("error: %v\n", err)
-					return
 				}
+				return
 			case <-ctx.Done():
 				fmt.Println("program termination after receiving a signal")
 				return

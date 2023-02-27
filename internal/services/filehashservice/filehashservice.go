@@ -15,13 +15,15 @@ type FileHash struct {
 }
 
 type FileHashService struct {
+	log     *logrus.Logger
 	alg     string
 	path    string
 	workers int
 }
 
-func New(logger *logrus.Logger, alg string, path string, workers int) *FileHashService {
+func New(log *logrus.Logger, alg string, path string, workers int) *FileHashService {
 	return &FileHashService{
+		log:     log,
 		alg:     alg,
 		path:    path,
 		workers: workers,
@@ -36,6 +38,7 @@ func (fhs *FileHashService) CalculateAll(ctx context.Context) ([]FileHash, error
 
 	go func() {
 		hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
+		fhs.log.Debug("Begin calculate hashes")
 		err = fshasher.Walk(ctx, fhs.workers, fhs.path, hashFuncBuilder, func(path, hash string) error { return nil })
 		close(hashChan)
 	}()
@@ -45,8 +48,11 @@ func (fhs *FileHashService) CalculateAll(ctx context.Context) ([]FileHash, error
 	}
 
 	if err != nil {
+		fhs.log.WithError(err).Debug("Failed calculate hashes")
 		return nil, err
 	}
+
+	fhs.log.WithField("HashNum", len(result)).Debug("Success calculate hashes")
 
 	return result, nil
 }
@@ -54,12 +60,20 @@ func (fhs *FileHashService) CalculateAll(ctx context.Context) ([]FileHash, error
 // CalculateInCallback calculate file hashes and call callback for each hash
 func (fhs *FileHashService) CalculateInCallback(ctx context.Context, handlert func(fh FileHash) error) error {
 	hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
-	return fshasher.Walk(ctx, fhs.workers, fhs.path, hashFuncBuilder, func(path, hash string) error {
+	fhs.log.Debug("Begin calculate hashes")
+	err := fshasher.Walk(ctx, fhs.workers, fhs.path, hashFuncBuilder, func(path, hash string) error {
+		fhs.log.Tracef("Hash calculated : %v", path)
 		return handlert(FileHash{
 			Path: path,
 			Hash: hash,
 		})
 	})
+	if err != nil {
+		fhs.log.WithError(err).Debug("Failed calculate hashes")
+		return err
+	}
+	fhs.log.Debug("Success calculate hashes")
+	return nil
 }
 
 // CalculateInChan calculate file hashes and send into chan
@@ -70,7 +84,9 @@ func (fhs *FileHashService) CalculateInChan(ctx context.Context) (chan FileHash,
 
 	go func() {
 		hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
+		fhs.log.Debug("Begin calculate hashes")
 		err := fshasher.Walk(ctx, fhs.workers, fhs.path, hashFuncBuilder, func(path, hash string) error {
+			fhs.log.Tracef("Hash calculated : %v", path)
 			resultChan <- FileHash{
 				Path: path,
 				Hash: hash,
@@ -78,7 +94,10 @@ func (fhs *FileHashService) CalculateInChan(ctx context.Context) (chan FileHash,
 			return nil
 		})
 		if err != nil {
+			fhs.log.WithError(err).Debug("Failed calculate hashes")
 			errChan <- err
+		} else {
+			fhs.log.Debug("Success calculate hashes")
 		}
 		close(resultChan)
 		close(errChan)
