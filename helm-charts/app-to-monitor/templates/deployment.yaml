@@ -57,6 +57,12 @@ spec:
             - --splunk-url={{ .Values.configMap.splunkUrl }}
             - --splunk-token={{ .Values.configMap.splunkToken }}
             - --splunk-insecure-skip-verify={{ .Values.configMap.splunkInsecureSkipVerify }}
+            {{- if .Values.configMap.syslog.enabled }}
+            - --syslog-enabled={{ .Values.configMap.syslog.enabled }}
+            - --syslog-host={{ .Values.configMap.syslog.host }}
+            - --syslog-port={{ .Values.configMap.syslog.port }}
+            - --syslog-proto={{ .Values.configMap.syslog.proto }}
+            {{- end }}
           resources:
             limits:
               cpu: "1"
