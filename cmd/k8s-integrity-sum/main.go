@@ -4,9 +4,9 @@ import (
 	"context"
 	"flag"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/graceful"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/initialize"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )

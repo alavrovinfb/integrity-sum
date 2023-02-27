@@ -5,22 +5,22 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
 	"runtime"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehashservice"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"
 )
 
 // Initializes the binding of the flag to a variable that must run before the main() function
 func init() {
 	fsLog := pflag.NewFlagSet("log", pflag.ContinueOnError)
 	fsLog.String("verbose", "info", "verbose level")
+
 	fsSum := pflag.NewFlagSet("sum", pflag.ContinueOnError)
 	fsSum.Int("count-workers", runtime.NumCPU(), "number of running workers in the workerpool")
 	fsSum.String("algorithm", "SHA256", "algorithm MD5, SHA1, SHA224, SHA256, SHA384, SHA512, default: SHA256")
@@ -34,20 +34,13 @@ func init() {
 
 func main() {
 	pflag.Parse()
-	// Install logger
 	logger := logger.Init(viper.GetString("verbose"))
+	graceful.Execute(context.Background(), logger, func(ctx context.Context) {
+		run(ctx, logger)
+	})
+}
 
-	// Install context and signal
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
-
-	defer func() {
-		signal.Stop(sig)
-		cancel()
-	}()
-
+func run(ctx context.Context, logger *logrus.Logger) {
 	switch {
 	case viper.GetBool("doHelp"):
 		flag.Usage = func() {
@@ -59,33 +52,22 @@ func main() {
 		}
 		flag.Usage()
 	case len(viper.GetString("dirPath")) > 0:
-		//Connection to database
-		db, err := repositories.ConnectionToDB(logger)
-		if err != nil {
-			logger.Fatalf("can't connect to database: %s", err)
-		}
+		hashservice := filehashservice.New(logger, viper.GetString("algorithm"), viper.GetString("dirPath"), viper.GetInt("count-workers"))
+		resultChan, errChan := hashservice.CalculateInChan(ctx)
 
-		// Initialize repository
-		repository := repositories.NewAppRepository(logger, db)
-
-		// Initialize service
-		service := services.NewAppService(repository, nil, viper.GetString("algorithm"), logger)
-
-		jobs := make(chan string)
-		results := make(chan *api.HashData)
-
-		go service.WorkerPool(jobs, results)
-		go api.SearchFilePath(ctx, viper.GetString("dirPath"), jobs, logger)
 		for {
 			select {
-			case hashData, ok := <-results:
-				if !ok {
+			case hashData, ok := <-resultChan:
+				if ok {
+					fmt.Printf("%s %s\n", hashData.Hash, hashData.Path)
+				} else {
+					resultChan = nil
+				}
+			case err := <-errChan:
+				if err != nil {
+					fmt.Printf("error: %v\n", err)
 					return
 				}
-				fmt.Printf("%s %s\n", hashData.Hash, hashData.FileName)
-			case <-sig:
-				fmt.Println("exit program")
-				return
 			case <-ctx.Done():
 				fmt.Println("program termination after receiving a signal")
 				return
