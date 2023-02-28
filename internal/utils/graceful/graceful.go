@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func Execute(pCtx context.Context, logger *logrus.Logger, execute func(context.Context) error) error {
+func Execute(pCtx context.Context, logger *logrus.Logger, execute func(context.Context)) {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	ctx, cancel := context.WithCancel(pCtx)
@@ -25,5 +25,5 @@ func Execute(pCtx context.Context, logger *logrus.Logger, execute func(context.C
 		close(sig)
 	}()
 
-	return execute(ctx)
+	execute(ctx)
 }

@@ -29,9 +29,15 @@ func main() {
 	DBMigration(logger)
 
 	// Run Application with graceful shutdown context
-	graceful.Execute(context.Background(), logger, func(ctx context.Context) error {
+	graceful.Execute(context.Background(), logger, func(ctx context.Context) {
+
+		// initialize.Initialize(ctx, logger)
+
 		monitor := initMonitor(ctx, logger)
-		return monitor.Run(ctx)
+		err := monitor.Run(ctx)
+		if err != nil && err != context.Canceled && err != context.DeadlineExceeded {
+			logger.WithError(err).Error("monitor execution completed with error")
+		}
 	})
 }
 

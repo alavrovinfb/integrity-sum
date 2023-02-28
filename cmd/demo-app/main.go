@@ -59,8 +59,8 @@ func run(ctx context.Context, logger *logrus.Logger) {
 		}
 		flag.Usage()
 	case len(viper.GetString("dirPath")) > 0:
-		hashservice := filehash.NewFileSystemHasher(logger, viper.GetString("algorithm"), viper.GetString("dirPath"), viper.GetInt("count-workers"))
-		resultChan, errChan := hashservice.CalculateInChan(ctx)
+		hashservice := filehash.NewFileSystemHasher(logger, viper.GetString("algorithm"), viper.GetInt("count-workers"))
+		resultChan, errChan := hashservice.CalculateInChan(ctx, viper.GetString("dirPath"))
 
 		for {
 			select {
