@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
-	"os/signal"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/graceful"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/initialize"
-	logConfig "github.com/ScienceSoft-Inc/integrity-sum/pkg/logger"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 )
 
 func main() {
@@ -18,22 +17,15 @@ func main() {
 	initConfig()
 
 	// Install logger
-	logger := logConfig.InitLogger(viper.GetInt("verbose"))
+	logger := logger.Init(viper.GetString("verbose"))
 
 	// Install migration
 	DBMigration(logger)
 
-	// Handling shutdown signals
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer func() {
-		signal.Stop(sig)
-		cancel()
-	}()
-
-	// Initialize program
-	initialize.Initialize(ctx, logger, sig)
+	// Run Application with graceful shutdown context
+	graceful.Execute(context.Background(), logger, func(ctx context.Context) {
+		initialize.Initialize(ctx, logger)
+	})
 }
 
 func initConfig() {

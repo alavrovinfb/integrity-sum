@@ -31,7 +31,7 @@ const (
 
 func init() {
 	fsLog := pflag.NewFlagSet("log", pflag.ContinueOnError)
-	fsLog.Int("verbose", 5, "verbose level")
+	fsLog.String("verbose", "info", "verbose level")
 	pflag.CommandLine.AddFlagSet(fsLog)
 	if err := viper.BindPFlags(fsLog); err != nil {
 		fmt.Printf("error binding flags: %v", err)
@@ -65,7 +65,6 @@ func init() {
 		fmt.Printf("error binding flags: %v", err)
 		os.Exit(1)
 	}
-
 	viper.BindEnv("db-host", "DB_HOST")
 	viper.BindEnv("db-port", "DB_PORT")
 	viper.BindEnv("db-name", "DB_NAME")
