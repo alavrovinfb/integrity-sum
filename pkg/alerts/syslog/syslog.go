@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"log/syslog"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -49,6 +50,6 @@ func (sl *SyslogClient) Close() {
 
 func (sl *SyslogClient) syslogMessage(alert alerts.Alert) string {
 	return fmt.Sprintf("time=%s event-type=%04d service=%s namespace=%s cluster=%s message=%s file=%s reason=%s",
-		alert.Time, fileMismatch, viper.GetString("process"), viper.GetString("pod-namespace"),
+		alert.Time.Format(time.Stamp), fileMismatch, viper.GetString("process"), viper.GetString("pod-namespace"),
 		viper.GetString("cluster-name"), alert.Message, alert.Path, alert.Reason)
 }
