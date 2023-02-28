@@ -15,7 +15,7 @@ func Execute(pCtx context.Context, logger *logrus.Logger, execute func(context.C
 	ctx, cancel := context.WithCancel(pCtx)
 	go func() {
 		if s, ok := <-sig; ok {
-			logger.WithField("signal", s.String()).Info("shutdown signal receveid")
+			logger.WithField("signal", s.String()).Info("shutdown signal received")
 			cancel()
 		}
 	}()

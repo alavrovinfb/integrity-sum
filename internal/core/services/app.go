@@ -13,7 +13,6 @@ import (
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
@@ -27,7 +26,7 @@ type AppService struct {
 }
 
 // NewAppService creates a new struct AppService
-func NewAppService(r *repositories.AppRepository, alertSender alerts.Sender, algorithm string, logger *logrus.Logger) *AppService {
+func NewAppService(r ports.IAppRepository, alertSender alerts.Sender, algorithm string, logger *logrus.Logger) *AppService {
 	return &AppService{
 		IHashService:   NewHashService(r, strings.ToUpper(algorithm), logger),
 		IAppRepository: r,
