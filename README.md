@@ -99,6 +99,9 @@ Set some environment variables to configure DB params:
 - DB_USER
 - DB_NAME
 
+optional:
+- SYSLOG_ENABLED=true if syslog functionality is required 
+
 They will be stored in a secret on the cluster during deployment and used to create application DB and manage connections to it.
 
 Minikube start:
@@ -122,6 +125,11 @@ There are some predefined targets in the Makefile for deployment:
 - Install helm chart with database
     ```
     make helm-database
+    ```
+- Install rsync server
+Set `SYSLOG_ENABLED` ENV to true then run:
+    ```
+    make helm-syslog
     ```
 - Install helm chart with app
     ```

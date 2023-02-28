@@ -1,6 +1,6 @@
 VERSION_MOCKGEN=v1.6.0
 ## You can change these values
-RELEASE_NAME_DB=db
+RELEASE_NAME_DB ?= db
 RELEASE_NAME_APP=app
 RELEASE_NAME_SYSLOG=rsyslog
 
