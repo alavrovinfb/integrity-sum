@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/model"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehashservice"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/process"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/sirupsen/logrus"
@@ -14,34 +14,34 @@ import (
 
 type IntegrityMonitor struct {
 	logger             *logrus.Logger
-	hashService        *filehashservice.FileHashService
+	fshasher           *filehash.FileSystemHasher
+	repository         ports.IAppRepository
+	kubeclient         ports.IKuberService
 	alertSender        alerts.Sender
 	delay              time.Duration
 	monitorProcess     string
 	monitorProcessPath string
-	// repository     ports.IAppRepository
-	// kubeclient     ports.IKuberService
 }
 
 func New(logger *logrus.Logger,
-	hashService *filehashservice.FileHashService,
+	fshasher *filehash.FileSystemHasher,
+	repository ports.IAppRepository,
+	kubeclient ports.IKuberService,
 	alertSender alerts.Sender,
 	delay time.Duration,
 	monitorProcess string,
 	monitorProcessPath string,
-	// repository ports.IAppRepository,
-	// kubeclient ports.IKuberService,
 
 ) *IntegrityMonitor {
 	return &IntegrityMonitor{
 		logger:             logger,
-		hashService:        hashService,
+		fshasher:           fshasher,
+		repository:         repository,
+		kubeclient:         kubeclient,
 		alertSender:        alertSender,
 		delay:              delay,
 		monitorProcess:     monitorProcess,
 		monitorProcessPath: monitorProcessPath,
-		// repository:     repository,
-		// kubeclient:     kubeclient,
 	}
 }
 
@@ -84,7 +84,7 @@ func (m *IntegrityMonitor) setupIntegrity(ctx context.Context, path string) erro
 }
 
 func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, path string) error {
-	err := m.hashService.CalculateInCallback(ctx, func(fh model.FileHash) error {
+	err := m.fshasher.CalculateInCallback(ctx, path, func(fh filehash.FileHash) error {
 
 		return nil
 	})

@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehashservice"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"
 )
 
@@ -59,7 +59,7 @@ func run(ctx context.Context, logger *logrus.Logger) {
 		}
 		flag.Usage()
 	case len(viper.GetString("dirPath")) > 0:
-		hashservice := filehashservice.New(logger, viper.GetString("algorithm"), viper.GetString("dirPath"), viper.GetInt("count-workers"))
+		hashservice := filehash.NewFileSystemHasher(logger, viper.GetString("algorithm"), viper.GetString("dirPath"), viper.GetInt("count-workers"))
 		resultChan, errChan := hashservice.CalculateInChan(ctx)
 
 		for {
