@@ -1,7 +1,10 @@
 VERSION_MOCKGEN=v1.6.0
 ## You can change these values
-RELEASE_NAME_DB=db
+RELEASE_NAME_DB ?= db
 RELEASE_NAME_APP=app
+RELEASE_NAME_SYSLOG=rsyslog
+
+SYSLOG_ENABLED ?= false
 
 GIT_COMMIT := $(shell git describe --tags --long --dirty=-unsupported --always || echo pre-commit)
 IMAGE_VERSION ?= $(GIT_COMMIT)
@@ -13,6 +16,7 @@ FULL_IMAGE_NAME=$(IMAGE_NAME):$(IMAGE_VERSION)
 # helm chart path
 HELM_CHART_DB = helm-charts/database-to-integrity-sum
 HELM_CHART_APP = helm-charts/app-to-monitor
+HELM_CHART_SYSLOG = helm-charts/rsyslog
 
 DB_SECRET_NAME ?= $(IMAGE_NAME)
 
@@ -75,7 +79,12 @@ helm-app:
 		--set db.password=$(DB_PASSWORD) \
 		--set containerSidecar.name=$(IMAGE_NAME) \
 		--set containerSidecar.image=$(FULL_IMAGE_NAME) \
+		--set configMap.syslog.enabled=$(SYSLOG_ENABLED) \
 		$(HELM_CHART_APP)
+
+helm-syslog:
+	@helm upgrade -i ${RELEASE_NAME_SYSLOG} \
+		$(HELM_CHART_SYSLOG)
 
 .PHONY: kind-load-images
 kind-load-images:
