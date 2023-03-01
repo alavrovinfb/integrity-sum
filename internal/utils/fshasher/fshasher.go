@@ -14,7 +14,7 @@ import (
 )
 
 type FileHasher func(path string) (string, error)
-type HashProcessor func(path string, hash string) error
+type HashProcessor func(path string, fhash string) error
 
 // FileHasherByHash make FileHasher function from hash.Hash
 // each hash execution require new hasher object

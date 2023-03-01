@@ -37,7 +37,10 @@ func (fhs *FileSystemHasher) CalculateAll(ctx context.Context, path string) ([]F
 	go func() {
 		hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
 		fhs.log.Debug("Begin calculate hashes")
-		err = fshasher.Walk(ctx, fhs.workers, path, hashFuncBuilder, func(path, hash string) error { return nil })
+		err = fshasher.Walk(ctx, fhs.workers, path, hashFuncBuilder, func(path, fhash string) error {
+			hashChan <- FileHash{Path: path, Hash: fhash}
+			return nil
+		})
 		close(hashChan)
 	}()
 
@@ -59,11 +62,11 @@ func (fhs *FileSystemHasher) CalculateAll(ctx context.Context, path string) ([]F
 func (fhs *FileSystemHasher) CalculateInCallback(ctx context.Context, path string, handlert func(fh FileHash) error) error {
 	hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
 	fhs.log.Debug("Begin calculate hashes")
-	err := fshasher.Walk(ctx, fhs.workers, path, hashFuncBuilder, func(path, hash string) error {
+	err := fshasher.Walk(ctx, fhs.workers, path, hashFuncBuilder, func(path, fhash string) error {
 		fhs.log.Tracef("Hash calculated : %v", path)
 		return handlert(FileHash{
 			Path: path,
-			Hash: hash,
+			Hash: fhash,
 		})
 	})
 	if err != nil {
@@ -83,11 +86,11 @@ func (fhs *FileSystemHasher) CalculateInChan(ctx context.Context, path string) (
 	go func() {
 		hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
 		fhs.log.Debug("Begin calculate hashes")
-		err := fshasher.Walk(ctx, fhs.workers, path, hashFuncBuilder, func(path, hash string) error {
+		err := fshasher.Walk(ctx, fhs.workers, path, hashFuncBuilder, func(path, fhash string) error {
 			fhs.log.Tracef("Hash calculated : %v", path)
 			resultChan <- FileHash{
 				Path: path,
-				Hash: hash,
+				Hash: fhash,
 			}
 			return nil
 		})

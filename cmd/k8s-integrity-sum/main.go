@@ -71,7 +71,7 @@ func initMonitor(ctx context.Context, logger *logrus.Logger) *integritymonitor.I
 
 	fileHasher := filehash.NewFileSystemHasher(logger, algorithm, countWorkers)
 
-	return integritymonitor.New(logger, fileHasher, repository, kubeClient, alertsSender, monitorDelay, monitorProc, monitorPath)
+	return integritymonitor.New(logger, fileHasher, repository, kubeClient, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm)
 }
 
 func initConfig() {
