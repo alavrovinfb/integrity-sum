@@ -29,7 +29,7 @@ func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, 
 	err := row.Scan(&id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			ar.logger.Error("no rows were returned ", err)
+			ar.logger.Info("no rows in database")
 			return false, nil
 		} else {
 			ar.logger.Error("err while scan row in database ", err)
