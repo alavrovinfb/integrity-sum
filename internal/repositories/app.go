@@ -30,7 +30,7 @@ func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ar.logger.Error("no rows were returned ", err)
-			return false, err
+			return false, nil
 		} else {
 			ar.logger.Error("err while scan row in database ", err)
 			return false, err
@@ -44,7 +44,7 @@ func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, 
 func (ar AppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
 	tx, err := ar.db.Begin()
 	if err != nil {
-		ar.logger.Error("err while initiating a transaction to save data in database ", err)
+		ar.logger.Error("open transaction error ", err)
 		return err
 	}
 
