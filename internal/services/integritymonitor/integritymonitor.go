@@ -17,7 +17,7 @@ import (
 )
 
 var ErrIntegrityNewFileFoud = errors.New("file found")
-var ErrIntegrityFileDelete = errors.New("file deleted")
+var ErrIntegrityFileDeleted = errors.New("file deleted")
 var ErrIntegrityFileMismatch = errors.New("file content mismatch")
 
 type IntegrityMonitor struct {
@@ -71,7 +71,7 @@ func (m *IntegrityMonitor) Run(ctx context.Context) error {
 		return err
 	}
 
-	err = m.setupIntegrity(ctx, processPath, deploymentData)
+	err = m.setupIntegrity(ctx, processPath, kuberData, deploymentData)
 	if err != nil {
 		m.logger.WithError(err).Error("failed setup integrity")
 		return err
@@ -82,7 +82,7 @@ func (m *IntegrityMonitor) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
-			err := m.checkIntegrity(ctx, processPath, deploymentData)
+			err := m.checkIntegrity(ctx, processPath, kuberData, deploymentData)
 			if err != nil {
 				m.logger.WithError(err).Error("failed check integrity")
 			}
@@ -92,7 +92,7 @@ func (m *IntegrityMonitor) Run(ctx context.Context) error {
 	}
 }
 
-func (m *IntegrityMonitor) setupIntegrity(ctx context.Context, directory string, deploymentData *models.DeploymentData) error {
+func (m *IntegrityMonitor) setupIntegrity(ctx context.Context, directory string, kubeData *models.KuberData, deploymentData *models.DeploymentData) error {
 	m.logger.Debug("begin setup integrity")
 	m.logger.Trace("begin calculate hashes")
 	fileHashes, err := m.fshasher.CalculateAll(ctx, directory)
@@ -121,21 +121,16 @@ func (m *IntegrityMonitor) setupIntegrity(ctx context.Context, directory string,
 	return nil
 }
 
-func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, directory string, deploymentData *models.DeploymentData) error {
-	m.logger.Debug("begin check integrity")
-	m.logger.Trace("begin calculate hashes")
+func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, directory string, kubeData *models.KuberData, deploymentData *models.DeploymentData) error {
 	fileHashes, err := m.fshasher.CalculateAll(ctx, directory)
 	if err != nil {
 		return fmt.Errorf("failed calculate file hashes: %w", err)
 	}
-	m.logger.WithField("filesCount", len(fileHashes)).Trace("end calculate hashes")
 
-	m.logger.Trace("read stored integrity hashes")
 	fileHashesDto, err := m.repository.GetHashData(directory, m.algorithm, deploymentData)
 	if err != nil {
 		return fmt.Errorf("failed get hash data: %w", err)
 	}
-	m.logger.WithField("filesCount", len(fileHashesDto)).Trace("integrity hashes readed")
 
 	referecenHashes := make(map[string]*models.HashDataFromDB, len(fileHashesDto))
 
@@ -143,26 +138,26 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, directory string,
 		referecenHashes[fh.FullFilePath] = fh
 	}
 
-	m.logger.Debug("begin compare hashes")
 	for _, fh := range fileHashes {
 		if fhdto, ok := referecenHashes[fh.Path]; ok {
 			if fhdto.Hash != fh.Hash {
-				m.logger.WithField("path", fh.Path).Warn("Found new file")
+				m.integrityCheckFailed(ErrIntegrityFileMismatch, fh.Path, kubeData, deploymentData)
 				return ErrIntegrityFileMismatch
 			}
 			delete(referecenHashes, fh.Path)
 		} else {
-			m.logger.WithField("path", fh.Path).Warn("Found new file")
+			m.integrityCheckFailed(ErrIntegrityNewFileFoud, fh.Path, kubeData, deploymentData)
 			return ErrIntegrityNewFileFoud
 		}
 	}
 
 	if len(referecenHashes) > 0 {
-		m.logger.Warn("Some files was deleted")
-		return ErrIntegrityFileDelete
+		for path := range referecenHashes {
+			m.integrityCheckFailed(ErrIntegrityFileDeleted, path, kubeData, deploymentData)
+			return ErrIntegrityFileDeleted
+		}
 	}
 
-	m.logger.Debug("end check integrity")
 	return err
 }
 
@@ -172,4 +167,27 @@ func (m *IntegrityMonitor) getProcessPath(procName string, path string) (string,
 		return "", fmt.Errorf("failed build process path: %w", err)
 	}
 	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
+}
+
+func (m *IntegrityMonitor) integrityCheckFailed(err error, path string, kubeData *models.KuberData, deploymentData *models.DeploymentData) {
+	switch err {
+	case ErrIntegrityFileMismatch:
+		m.logger.WithField("path", path).Warn("file content missmatch")
+	case ErrIntegrityNewFileFoud:
+		m.logger.WithField("path", path).Warn("new file found")
+	case ErrIntegrityFileDeleted:
+		m.logger.WithField("path", path).Warn("file deleted")
+	}
+	if m.alertSender != nil {
+		err := m.alertSender.Send(alerts.Alert{
+			Time:    time.Now(),
+			Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
+			Reason:  "mismatch file content",
+			Path:    path,
+		})
+		if err != nil {
+			m.logger.WithError(err).Error("Failed send alert")
+		}
+	}
+	m.kubeclient.RolloutDeployment(kubeData)
 }
