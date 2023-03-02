@@ -24,7 +24,7 @@ type IHashService interface {
 	GetHashData(dirPath string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error)
 	DeleteFromTable(nameDeployment string) error
 	IsDataChanged(currentHashData []*api.HashData, hashSumFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) bool
-	CreateHash(path string) (*api.HashData, error)
+	CreateHash(filePath string) (*api.HashData, error)
 	WorkerPool(jobs chan string, results chan *api.HashData)
 	Worker(wg *sync.WaitGroup, jobs <-chan string, results chan<- *api.HashData)
 }

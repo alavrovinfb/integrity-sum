@@ -13,14 +13,14 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type FileHasher func(path string) (string, error)
-type HashProcessor func(path string, fhash string) error
+type FileHasher func(filePath string) (string, error)
+type HashProcessor func(filePath string, fhash string) error
 
 // FileHasherByHash make FileHasher function from hash.Hash
 // each hash execution require new hasher object
 func FileHasherByHash(hashBuilder func() hash.Hash) FileHasher {
-	return func(path string) (string, error) {
-		file, err := os.Open(path)
+	return func(filePath string) (string, error) {
+		file, err := os.Open(filePath)
 		if err != nil {
 			return "", err
 		}
@@ -43,7 +43,7 @@ func FileHasherByHash(hashBuilder func() hash.Hash) FileHasher {
 
 // Walk is walking through directory and subdirectories, calculate hashes of files and call processor for hash results
 // error stop execution
-func Walk(ctx context.Context, workers int, path string, fileHasher FileHasher, processor HashProcessor) error {
+func Walk(ctx context.Context, workers int, dirPath string, fileHasher FileHasher, processor HashProcessor) error {
 	if workers <= 0 {
 		workers = 1
 	}
@@ -52,7 +52,7 @@ func Walk(ctx context.Context, workers int, path string, fileHasher FileHasher, 
 	group.SetLimit(-1)
 
 	group.Go(func() error {
-		err := walkDir(groupCtx, path, filesChan)
+		err := walkDir(groupCtx, dirPath, filesChan)
 		close(filesChan)
 		return err
 	})
@@ -63,15 +63,15 @@ func Walk(ctx context.Context, workers int, path string, fileHasher FileHasher, 
 				select {
 				case <-groupCtx.Done():
 					return nil
-				case path, ok := <-filesChan:
+				case filePath, ok := <-filesChan:
 					if !ok {
 						return nil
 					}
-					hash, err := fileHasher(path)
+					hash, err := fileHasher(filePath)
 					if err != nil {
 						return err
 					}
-					err = processor(path, hash)
+					err = processor(filePath, hash)
 					if err != nil {
 						return err
 					}
@@ -82,8 +82,8 @@ func Walk(ctx context.Context, workers int, path string, fileHasher FileHasher, 
 	return group.Wait()
 }
 
-func walkDir(ctx context.Context, path string, outputChan chan<- string) error {
-	err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+func walkDir(ctx context.Context, dirPath string, outputChan chan<- string) error {
+	err := filepath.WalkDir(dirPath, func(filePath string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -101,7 +101,7 @@ func walkDir(ctx context.Context, path string, outputChan chan<- string) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case outputChan <- path:
+		case outputChan <- filePath:
 			return nil
 		}
 	})

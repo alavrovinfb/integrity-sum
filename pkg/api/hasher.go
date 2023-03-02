@@ -10,8 +10,8 @@ import (
 )
 
 // SearchFilePath searches for all files in the given directory
-func SearchFilePath(ctx context.Context, commonPath string, jobs chan<- string, logger *logrus.Logger) {
-	err := filepath.Walk(commonPath, func(path string, info os.FileInfo, err error) error {
+func SearchFilePath(ctx context.Context, dirPath string, jobs chan<- string, logger *logrus.Logger) {
+	err := filepath.Walk(dirPath, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil {
 			logger.Error("err while going to path files", err)
 			return err
@@ -21,7 +21,7 @@ func SearchFilePath(ctx context.Context, commonPath string, jobs chan<- string, 
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case jobs <- path:
+			case jobs <- filePath:
 			}
 		}
 

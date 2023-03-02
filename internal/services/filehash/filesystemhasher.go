@@ -37,6 +37,7 @@ func (fhs *FileSystemHasher) CalculateAll(ctx context.Context, dirPath string) (
 	go func() {
 		hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
 		fhs.log.Debug("Begin calculate hashes")
+
 		err = fshasher.Walk(ctx, fhs.workers, dirPath, hashFuncBuilder, func(filePath string, fileHash string) error {
 			hashChan <- FileHash{Path: filePath, Hash: fileHash}
 			return nil

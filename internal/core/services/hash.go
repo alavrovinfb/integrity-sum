@@ -59,10 +59,10 @@ func (hs HashService) Worker(wg *sync.WaitGroup, jobs <-chan string, results cha
 }
 
 // CreateHash creates a new object with a hash sum
-func (hs HashService) CreateHash(path string) (*api.HashData, error) {
-	file, err := os.Open(path)
+func (hs HashService) CreateHash(filePath string) (*api.HashData, error) {
+	file, err := os.Open(filePath)
 	if err != nil {
-		hs.logger.Errorf("can not open file %s %s", path, err)
+		hs.logger.Errorf("can not open file %s %s", filePath, err)
 		return nil, err
 	}
 	defer func(file *os.File) {
@@ -79,14 +79,14 @@ func (hs HashService) CreateHash(path string) (*api.HashData, error) {
 		return nil, err
 	}
 	hs.logger.WithFields(logrus.Fields{
-		"file":  path,
+		"file":  filePath,
 		"bytes": wbytes,
 	}).Debug("written bytes")
 	res := hex.EncodeToString(h.Sum(nil))
 	outputHashSum := api.HashData{
 		Hash:         res,
-		FileName:     filepath.Base(path),
-		FullFilePath: path,
+		FileName:     filepath.Base(filePath),
+		FullFilePath: filePath,
 		Algorithm:    hs.alg,
 	}
 	return &outputHashSum, nil
