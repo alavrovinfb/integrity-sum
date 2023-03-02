@@ -1,3 +1,5 @@
+//go:build bee2
+
 package bee2
 
 /*
@@ -67,8 +69,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"unsafe"
-
-	"github.com/sirupsen/logrus"
 )
 
 // The bee2 configuration parameters
@@ -84,7 +84,7 @@ const (
 )
 
 // Bee2HashFile returns hash of fname file
-func Bee2HashFile(fname string, log *logrus.Logger) (string, error) {
+func Bee2HashFile(fname string) (string, error) {
 	fnameC := C.CString(fname)
 	defer C.free(unsafe.Pointer(fnameC))
 
@@ -129,5 +129,5 @@ func (a *bee2) bashHashStepG() {
 	defer C.free(hashC)
 
 	C.bashHashStepG((*C.uchar)(hashC), C.ulong(a.hid/8), stateC)
-	copy(a.hash, C.GoBytes(hashC, HASHSIZE))
+	copy(a.hash, C.GoBytes(hashC, C.int(a.hashSize)))
 }
