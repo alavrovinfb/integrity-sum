@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
@@ -28,24 +29,34 @@ func main() {
 	// Install migration
 	DBMigration(logger)
 
+	monitor, err := initMonitor(logger)
+	if err != nil {
+		logger.WithError(err).Fatal("failed initialize integrity monitor")
+	}
+
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), logger, func(ctx context.Context) {
 
+		// Initialize function still can be used to run previous implementation
 		// initialize.Initialize(ctx, logger)
 
-		monitor := initMonitor(ctx, logger)
 		err := monitor.Run(ctx)
-		if err != nil && err != context.Canceled && err != context.DeadlineExceeded {
-			logger.WithError(err).Error("monitor execution completed with error")
+		if err == context.Canceled {
+			logger.Info("execution cancelled")
+			return
+		}
+		if err != nil {
+			logger.WithError(err).Error("monitor execution aborted")
+			return
 		}
 	})
 }
 
-func initMonitor(ctx context.Context, logger *logrus.Logger) *integritymonitor.IntegrityMonitor {
+func initMonitor(logger *logrus.Logger) (*integritymonitor.IntegrityMonitor, error) {
 	// Initialize database
 	db, err := repositories.ConnectionToDB(logger)
 	if err != nil {
-		logger.Fatalf("can't connect to database: %s", err)
+		return nil, fmt.Errorf("failed connect to database: %w", err)
 	}
 	repository := repositories.NewAppRepository(logger, db)
 
@@ -60,18 +71,17 @@ func initMonitor(ctx context.Context, logger *logrus.Logger) *integritymonitor.I
 
 	// Kube client
 	kubeClient := services.NewKuberService(logger)
+	// kube client connection must be placed here with error handling
 
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
-
 	countWorkers := viper.GetInt("count-workers")
+	fileHasher := filehash.NewFileSystemHasher(logger, algorithm, countWorkers)
+
 	monitorDelay := viper.GetDuration("duration-time")
 	monitorProc := viper.GetString("process")
 	monitorPath := viper.GetString("monitoring-path")
-
-	fileHasher := filehash.NewFileSystemHasher(logger, algorithm, countWorkers)
-
-	return integritymonitor.New(logger, fileHasher, repository, kubeClient, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm)
+	return integritymonitor.New(logger, fileHasher, repository, kubeClient, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm), nil
 }
 
 func initConfig() {
