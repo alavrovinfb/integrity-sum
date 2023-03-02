@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
+	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2" // bee2 registration
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
@@ -24,18 +25,18 @@ func main() {
 	initConfig()
 
 	// Install logger
-	logger := logger.Init(viper.GetString("verbose"))
+	log := logger.Init(viper.GetString("verbose"))
 
 	// Install migration
-	DBMigration(logger)
+	DBMigration(log)
 
-	monitor, err := initMonitor(logger)
+	monitor, err := initMonitor(log)
 	if err != nil {
-		logger.WithError(err).Fatal("failed initialize integrity monitor")
+		log.WithError(err).Fatal("failed initialize integrity monitor")
 	}
 
 	// Run Application with graceful shutdown context
-	graceful.Execute(context.Background(), logger, func(ctx context.Context) {
+	graceful.Execute(context.Background(), log, func(ctx context.Context) {
 
 		// Initialize function still can be used to run previous implementation
 		// initialize.Initialize(ctx, logger)
