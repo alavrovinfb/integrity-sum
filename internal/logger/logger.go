@@ -4,7 +4,11 @@ import "github.com/sirupsen/logrus"
 
 func Init(ll string) *logrus.Logger {
 	l := logrus.New()
-	l.SetReportCaller(true)
+	// l.SetReportCaller(true)
+	l.SetFormatter(&logrus.TextFormatter{
+		DisableColors: true,
+		ForceQuote:    true,
+	})
 
 	lvl := logrus.InfoLevel
 	if len(ll) > 0 {

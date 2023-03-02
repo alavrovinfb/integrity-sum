@@ -21,15 +21,16 @@ var ErrIntegrityFileDeleted = errors.New("file deleted")
 var ErrIntegrityFileMismatch = errors.New("file content mismatch")
 
 type IntegrityMonitor struct {
-	logger             *logrus.Logger
-	fshasher           *filehash.FileSystemHasher
-	repository         ports.IAppRepository
-	kubeclient         ports.IKuberService
-	alertSender        alerts.Sender
-	delay              time.Duration
-	monitorProcess     string
-	monitorProcessPath string
-	algorithm          string
+	logger              *logrus.Logger
+	fshasher            *filehash.FileSystemHasher
+	repository          ports.IAppRepository
+	kubeclient          ports.IKuberService
+	alertSender         alerts.Sender
+	delay               time.Duration
+	algorithm           string
+	monitoringDirectory string
+	kuberData           *models.KuberData
+	deploymentData      *models.DeploymentData
 }
 
 func New(logger *logrus.Logger,
@@ -41,37 +42,43 @@ func New(logger *logrus.Logger,
 	monitorProcess string,
 	monitorProcessPath string,
 	algorithm string,
-) *IntegrityMonitor {
-	return &IntegrityMonitor{
-		logger:             logger,
-		fshasher:           fshasher,
-		repository:         repository,
-		kubeclient:         kubeclient,
-		alertSender:        alertSender,
-		delay:              delay,
-		monitorProcess:     monitorProcess,
-		monitorProcessPath: monitorProcessPath,
-		algorithm:          algorithm,
+) (*IntegrityMonitor, error) {
+	processPath, err := getProcessPath(monitorProcess, monitorProcessPath)
+	if err != nil {
+		return nil, err
 	}
+
+	kuberData, err := kubeclient.ConnectionToK8sAPI()
+	if err != nil {
+		return nil, err
+	}
+
+	deploymentData, err := kubeclient.GetDataFromDeployment(kuberData)
+	if err != nil {
+		return nil, err
+	}
+
+	return &IntegrityMonitor{
+		logger:              logger,
+		fshasher:            fshasher,
+		repository:          repository,
+		kubeclient:          kubeclient,
+		alertSender:         alertSender,
+		delay:               delay,
+		algorithm:           algorithm,
+		monitoringDirectory: processPath,
+		kuberData:           kuberData,
+		deploymentData:      deploymentData,
+	}, nil
+}
+
+func (m *IntegrityMonitor) Initialize() error {
+
+	return nil
 }
 
 func (m *IntegrityMonitor) Run(ctx context.Context) error {
-	processPath, err := m.getProcessPath(m.monitorProcess, m.monitorProcessPath)
-	if err != nil {
-		return err
-	}
-
-	kuberData, err := m.kubeclient.ConnectionToK8sAPI()
-	if err != nil {
-		return err
-	}
-
-	deploymentData, err := m.kubeclient.GetDataFromDeployment(kuberData)
-	if err != nil {
-		return err
-	}
-
-	err = m.setupIntegrity(ctx, processPath, kuberData, deploymentData)
+	err := m.setupIntegrity(ctx)
 	if err != nil {
 		m.logger.WithError(err).Error("failed setup integrity")
 		return err
@@ -82,7 +89,7 @@ func (m *IntegrityMonitor) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
-			err := m.checkIntegrity(ctx, processPath, kuberData, deploymentData)
+			err := m.checkIntegrity(ctx)
 			if err != nil {
 				m.logger.WithError(err).Error("failed check integrity")
 			}
@@ -92,10 +99,10 @@ func (m *IntegrityMonitor) Run(ctx context.Context) error {
 	}
 }
 
-func (m *IntegrityMonitor) setupIntegrity(ctx context.Context, directory string, kubeData *models.KuberData, deploymentData *models.DeploymentData) error {
+func (m *IntegrityMonitor) setupIntegrity(ctx context.Context) error {
 	m.logger.Debug("begin setup integrity")
 	m.logger.Trace("begin calculate hashes")
-	fileHashes, err := m.fshasher.CalculateAll(ctx, directory)
+	fileHashes, err := m.fshasher.CalculateAll(ctx, m.monitoringDirectory)
 	if err != nil {
 		return fmt.Errorf("failed calculate file hashes: %w", err)
 	}
@@ -112,7 +119,7 @@ func (m *IntegrityMonitor) setupIntegrity(ctx context.Context, directory string,
 	}
 
 	m.logger.Trace("begin store integrity hashes into storage")
-	err = m.repository.SaveHashData(fileHashesDto, deploymentData)
+	err = m.repository.SaveHashData(fileHashesDto, m.deploymentData)
 	if err != nil {
 		return err
 	}
@@ -121,13 +128,13 @@ func (m *IntegrityMonitor) setupIntegrity(ctx context.Context, directory string,
 	return nil
 }
 
-func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, directory string, kubeData *models.KuberData, deploymentData *models.DeploymentData) error {
-	fileHashes, err := m.fshasher.CalculateAll(ctx, directory)
+func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
+	fileHashes, err := m.fshasher.CalculateAll(ctx, m.monitoringDirectory)
 	if err != nil {
 		return fmt.Errorf("failed calculate file hashes: %w", err)
 	}
 
-	fileHashesDto, err := m.repository.GetHashData(directory, m.algorithm, deploymentData)
+	fileHashesDto, err := m.repository.GetHashData(m.monitoringDirectory, m.algorithm, m.deploymentData)
 	if err != nil {
 		return fmt.Errorf("failed get hash data: %w", err)
 	}
@@ -141,32 +148,24 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, directory string,
 	for _, fh := range fileHashes {
 		if fhdto, ok := referecenHashes[fh.Path]; ok {
 			if fhdto.Hash != fh.Hash {
-				m.integrityCheckFailed(ErrIntegrityFileMismatch, fh.Path, kubeData, deploymentData)
+				m.integrityCheckFailed(ErrIntegrityFileMismatch, fh.Path, m.kuberData, m.deploymentData)
 				return ErrIntegrityFileMismatch
 			}
 			delete(referecenHashes, fh.Path)
 		} else {
-			m.integrityCheckFailed(ErrIntegrityNewFileFoud, fh.Path, kubeData, deploymentData)
+			m.integrityCheckFailed(ErrIntegrityNewFileFoud, fh.Path, m.kuberData, m.deploymentData)
 			return ErrIntegrityNewFileFoud
 		}
 	}
 
 	if len(referecenHashes) > 0 {
 		for path := range referecenHashes {
-			m.integrityCheckFailed(ErrIntegrityFileDeleted, path, kubeData, deploymentData)
+			m.integrityCheckFailed(ErrIntegrityFileDeleted, path, m.kuberData, m.deploymentData)
 			return ErrIntegrityFileDeleted
 		}
 	}
 
 	return err
-}
-
-func (m *IntegrityMonitor) getProcessPath(procName string, path string) (string, error) {
-	pid, err := process.GetPID(procName)
-	if err != nil {
-		return "", fmt.Errorf("failed build process path: %w", err)
-	}
-	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
 }
 
 func (m *IntegrityMonitor) integrityCheckFailed(err error, path string, kubeData *models.KuberData, deploymentData *models.DeploymentData) {
@@ -190,4 +189,12 @@ func (m *IntegrityMonitor) integrityCheckFailed(err error, path string, kubeData
 		}
 	}
 	m.kubeclient.RolloutDeployment(kubeData)
+}
+
+func getProcessPath(procName string, path string) (string, error) {
+	pid, err := process.GetPID(procName)
+	if err != nil {
+		return "", fmt.Errorf("failed build process path: %w", err)
+	}
+	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
 }

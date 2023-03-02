@@ -43,11 +43,11 @@ func main() {
 
 		err := monitor.Run(ctx)
 		if err == context.Canceled {
-			logger.Info("execution cancelled")
+			log.Info("execution cancelled")
 			return
 		}
 		if err != nil {
-			logger.WithError(err).Error("monitor execution aborted")
+			log.WithError(err).Error("monitor execution aborted")
 			return
 		}
 	})
@@ -82,7 +82,7 @@ func initMonitor(logger *logrus.Logger) (*integritymonitor.IntegrityMonitor, err
 	monitorDelay := viper.GetDuration("duration-time")
 	monitorProc := viper.GetString("process")
 	monitorPath := viper.GetString("monitoring-path")
-	return integritymonitor.New(logger, fileHasher, repository, kubeClient, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm), nil
+	return integritymonitor.New(logger, fileHasher, repository, kubeClient, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm)
 }
 
 func initConfig() {
