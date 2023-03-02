@@ -23,20 +23,17 @@ func NewAppRepository(logger *logrus.Logger, db *sql.DB) *AppRepository {
 
 // IsExistDeploymentNameInDB checks if the base is empty
 func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, error) {
-	var id int64
-	query := `SELECT id FROM hashfiles WHERE name_deployment=$1 LIMIT 1;`
-	row := ar.db.QueryRow(query, deploymentName)
-	err := row.Scan(&id)
+	var count int
+	query := `SELECT COUNT(*) FROM hashfiles WHERE name_deployment=$1;`
+	err := ar.db.QueryRow(query, deploymentName).Scan(&count)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			ar.logger.Info("no rows in database")
-			return false, nil
-		} else {
-			ar.logger.Error("err while scan row in database ", err)
-			return false, err
-		}
+		ar.logger.Error("err while scan row in database ", err)
+		return false, err
 	}
-
+	if count == 0 {
+		ar.logger.Info("no rows in database")
+		return false, nil
+	}
 	return true, nil
 }
 
@@ -77,7 +74,7 @@ func (ar AppRepository) GetHashData(dirFiles, algorithm string, deploymentData *
 
 	rows, err := ar.db.Query(query, "%"+dirFiles+"%", algorithm, deploymentData.NamePod)
 	if err != nil {
-		ar.logger.Error(err)
+		ar.logger.Error("err while getting data from database ", err)
 		return nil, err
 	}
 
@@ -89,7 +86,7 @@ func (ar AppRepository) GetHashData(dirFiles, algorithm string, deploymentData *
 			&hashDataFromDB.Hash, &hashDataFromDB.Algorithm, &hashDataFromDB.ImageContainer,
 			&hashDataFromDB.NamePod, &hashDataFromDB.NameDeployment)
 		if err != nil {
-			ar.logger.Error(err)
+			ar.logger.Error("err while scan data from database ", err)
 			return nil, err
 		}
 		allHashDataFromDB = append(allHashDataFromDB, &hashDataFromDB)
