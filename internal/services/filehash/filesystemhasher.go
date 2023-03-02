@@ -29,7 +29,7 @@ func NewFileSystemHasher(log *logrus.Logger, alg string, workers int) *FileSyste
 }
 
 // Calculate calculate file hashes synchronously and store into slice
-func (fhs *FileSystemHasher) CalculateAll(ctx context.Context, path string) ([]FileHash, error) {
+func (fhs *FileSystemHasher) CalculateAll(ctx context.Context, dirPath string) ([]FileHash, error) {
 	hashChan := make(chan FileHash)
 	result := make([]FileHash, 0, 1024)
 	var err error
@@ -37,8 +37,8 @@ func (fhs *FileSystemHasher) CalculateAll(ctx context.Context, path string) ([]F
 	go func() {
 		hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
 		fhs.log.Debug("Begin calculate hashes")
-		err = fshasher.Walk(ctx, fhs.workers, path, hashFuncBuilder, func(path, fhash string) error {
-			hashChan <- FileHash{Path: path, Hash: fhash}
+		err = fshasher.Walk(ctx, fhs.workers, dirPath, hashFuncBuilder, func(filePath string, fileHash string) error {
+			hashChan <- FileHash{Path: filePath, Hash: fileHash}
 			return nil
 		})
 		close(hashChan)
@@ -59,14 +59,14 @@ func (fhs *FileSystemHasher) CalculateAll(ctx context.Context, path string) ([]F
 }
 
 // CalculateInCallback calculate file hashes and call callback for each hash
-func (fhs *FileSystemHasher) CalculateInCallback(ctx context.Context, path string, handlert func(fh FileHash) error) error {
+func (fhs *FileSystemHasher) CalculateInCallback(ctx context.Context, dirPath string, handlert func(fh FileHash) error) error {
 	hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
 	fhs.log.Debug("Begin calculate hashes")
-	err := fshasher.Walk(ctx, fhs.workers, path, hashFuncBuilder, func(path, fhash string) error {
-		fhs.log.Tracef("Hash calculated : %v", path)
+	err := fshasher.Walk(ctx, fhs.workers, dirPath, hashFuncBuilder, func(filePath string, fileHash string) error {
+		fhs.log.Tracef("Hash calculated : %v", filePath)
 		return handlert(FileHash{
-			Path: path,
-			Hash: fhash,
+			Path: filePath,
+			Hash: fileHash,
 		})
 	})
 	if err != nil {
@@ -79,18 +79,18 @@ func (fhs *FileSystemHasher) CalculateInCallback(ctx context.Context, path strin
 
 // CalculateInChan calculate file hashes and send into chan
 // both result and error channels will be closed at the end
-func (fhs *FileSystemHasher) CalculateInChan(ctx context.Context, path string) (chan FileHash, chan error) {
+func (fhs *FileSystemHasher) CalculateInChan(ctx context.Context, dirPath string) (chan FileHash, chan error) {
 	resultChan := make(chan FileHash)
 	errChan := make(chan error)
 
 	go func() {
 		hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
 		fhs.log.Debug("Begin calculate hashes")
-		err := fshasher.Walk(ctx, fhs.workers, path, hashFuncBuilder, func(path, fhash string) error {
-			fhs.log.Tracef("Hash calculated : %v", path)
+		err := fshasher.Walk(ctx, fhs.workers, dirPath, hashFuncBuilder, func(filePath, fileHash string) error {
+			fhs.log.Tracef("Hash calculated : %v", filePath)
 			resultChan <- FileHash{
-				Path: path,
-				Hash: fhash,
+				Path: filePath,
+				Hash: fileHash,
 			}
 			return nil
 		})
