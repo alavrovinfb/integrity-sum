@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/common"
 )
 
 const (
@@ -28,7 +29,7 @@ type SyslogClient struct {
 // New creates syslog client
 // priority syslog.LOG_WARNING|syslog.LOG_DAEMON
 func New(logger *logrus.Logger, network, addr string, priority syslog.Priority) (*SyslogClient, error) {
-	sysLog, err := syslog.Dial(network, addr, priority, alerts.AppId)
+	sysLog, err := syslog.Dial(network, addr, priority, common.AppId)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -32,6 +32,8 @@ configMap:
     host: "rsyslog"
     port: "514"
     proto: "tcp"
+  liveness:
+    appName: integritySum
 
 releaseNameDB: ""
 
