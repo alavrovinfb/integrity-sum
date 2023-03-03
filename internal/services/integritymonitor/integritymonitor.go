@@ -16,7 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var ErrIntegrityNewFileFoud = errors.New("file found")
+var ErrIntegrityNewFileFoud = errors.New("new file found")
 var ErrIntegrityFileDeleted = errors.New("file deleted")
 var ErrIntegrityFileMismatch = errors.New("file content mismatch")
 

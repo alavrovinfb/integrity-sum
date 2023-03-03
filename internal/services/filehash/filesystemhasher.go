@@ -2,10 +2,8 @@ package filehash
 
 import (
 	"context"
-	"hash"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/fshasher"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/hasher"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,10 +33,8 @@ func (fhs *FileSystemHasher) CalculateAll(ctx context.Context, dirPath string) (
 	var err error
 
 	go func() {
-		hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
 		fhs.log.Debug("Begin calculate hashes")
-
-		err = fshasher.Walk(ctx, fhs.workers, dirPath, hashFuncBuilder, func(filePath string, fileHash string) error {
+		err = fshasher.Walk(ctx, fhs.log, fhs.workers, dirPath, fhs.alg, func(filePath string, fileHash string) error {
 			hashChan <- FileHash{Path: filePath, Hash: fileHash}
 			return nil
 		})
@@ -54,16 +50,15 @@ func (fhs *FileSystemHasher) CalculateAll(ctx context.Context, dirPath string) (
 		return nil, err
 	}
 
-	fhs.log.WithField("HashNum", len(result)).Debug("Success calculate hashes")
+	fhs.log.WithField("HashesCount", len(result)).Debug("Success calculate hashes")
 
 	return result, nil
 }
 
 // CalculateInCallback calculate file hashes and call callback for each hash
 func (fhs *FileSystemHasher) CalculateInCallback(ctx context.Context, dirPath string, handlert func(fh FileHash) error) error {
-	hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
 	fhs.log.Debug("Begin calculate hashes")
-	err := fshasher.Walk(ctx, fhs.workers, dirPath, hashFuncBuilder, func(filePath string, fileHash string) error {
+	err := fshasher.Walk(ctx, fhs.log, fhs.workers, dirPath, fhs.alg, func(filePath string, fileHash string) error {
 		fhs.log.Tracef("Hash calculated : %v", filePath)
 		return handlert(FileHash{
 			Path: filePath,
@@ -85,9 +80,8 @@ func (fhs *FileSystemHasher) CalculateInChan(ctx context.Context, dirPath string
 	errChan := make(chan error)
 
 	go func() {
-		hashFuncBuilder := fshasher.FileHasherByHash(func() hash.Hash { return hasher.NewHashSum(fhs.alg) })
 		fhs.log.Debug("Begin calculate hashes")
-		err := fshasher.Walk(ctx, fhs.workers, dirPath, hashFuncBuilder, func(filePath, fileHash string) error {
+		err := fshasher.Walk(ctx, fhs.log, fhs.workers, dirPath, fhs.alg, func(filePath, fileHash string) error {
 			fhs.log.Tracef("Hash calculated : %v", filePath)
 			resultChan <- FileHash{
 				Path: filePath,

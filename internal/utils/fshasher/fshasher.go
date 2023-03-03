@@ -2,48 +2,19 @@ package fshasher
 
 import (
 	"context"
-	"encoding/hex"
-	"fmt"
-	"hash"
-	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/hasher"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
-type FileHasher func(filePath string) (string, error)
 type HashProcessor func(filePath string, fhash string) error
-
-// FileHasherByHash make FileHasher function from hash.Hash
-// each hash execution require new hasher object
-func FileHasherByHash(hashBuilder func() hash.Hash) FileHasher {
-	return func(filePath string) (string, error) {
-		file, err := os.Open(filePath)
-		if err != nil {
-			return "", err
-		}
-		defer func(file *os.File) {
-			err := file.Close()
-			if err != nil {
-				fmt.Printf("Failed close file: %v", err)
-			}
-		}(file)
-
-		h := hashBuilder()
-		_, err = io.Copy(h, file)
-		if err != nil {
-			return "", err
-		}
-		res := hex.EncodeToString(h.Sum(nil))
-		return res, nil
-	}
-}
 
 // Walk is walking through directory and subdirectories, calculate hashes of files and call processor for hash results
 // error stop execution
-func Walk(ctx context.Context, workers int, dirPath string, fileHasher FileHasher, processor HashProcessor) error {
+func Walk(ctx context.Context, log *logrus.Logger, workers int, dirPath string, alg string, processor HashProcessor) error {
 	if workers <= 0 {
 		workers = 1
 	}
@@ -59,6 +30,7 @@ func Walk(ctx context.Context, workers int, dirPath string, fileHasher FileHashe
 
 	for i := 0; i < workers; i++ {
 		group.Go(func() error {
+			fileHasher := hasher.NewFileHasher(alg, log)
 			for {
 				select {
 				case <-groupCtx.Done():
@@ -67,7 +39,7 @@ func Walk(ctx context.Context, workers int, dirPath string, fileHasher FileHashe
 					if !ok {
 						return nil
 					}
-					hash, err := fileHasher(filePath)
+					hash, err := fileHasher.HashFile(filePath)
 					if err != nil {
 						return err
 					}
