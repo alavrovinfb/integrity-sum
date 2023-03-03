@@ -73,7 +73,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - "[ -f /tmp/integrity-monitor ] && pidof integritySum"
+                - "[ -f /tmp/integrity-monitor ] && pidof {{ .Values.configMap.liveness.appName }}"
             initialDelaySeconds: 10
             periodSeconds: 5
           securityContext:
