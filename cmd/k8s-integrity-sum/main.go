@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -11,6 +12,8 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/graceful"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/initialize"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/common"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/health"
 )
 
 func main() {
@@ -19,6 +22,14 @@ func main() {
 
 	// Install logger
 	log := logger.Init(viper.GetString("verbose"))
+
+	// Set app health status to healthy
+	h := health.New(fmt.Sprintf("/tmp/%s", common.AppId))
+	err := h.Set()
+	if err != nil {
+		log.Fatalf("cannot create health file")
+	}
+	defer h.Reset()
 
 	// Install migration
 	DBMigration(log)

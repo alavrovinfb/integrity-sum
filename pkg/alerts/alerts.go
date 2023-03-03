@@ -6,7 +6,6 @@ import (
 )
 
 const (
-	AppId      = "integrity-monitor"
 	TypeSplunk = "splunk"
 	TypeSyslog = "syslog"
 )
