@@ -37,10 +37,6 @@ func main() {
 
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), log, func(ctx context.Context) {
-
-		// Initialize function still can be used to run previous implementation
-		// initialize.Initialize(ctx, logger)
-
 		err := monitor.Run(ctx)
 		if err == context.Canceled {
 			log.Info("execution cancelled")
@@ -53,13 +49,13 @@ func main() {
 	})
 }
 
-func initMonitor(logger *logrus.Logger) (*integritymonitor.IntegrityMonitor, error) {
+func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error) {
 	// Initialize database
-	db, err := repositories.ConnectionToDB(logger)
+	db, err := repositories.ConnectionToDB(log)
 	if err != nil {
 		return nil, fmt.Errorf("failed connect to database: %w", err)
 	}
-	repository := repositories.NewAppRepository(logger, db)
+	repository := repositories.NewAppRepository(log, db)
 
 	// Create alert sender
 	splunkUrl := viper.GetString("splunk-url")
@@ -67,22 +63,22 @@ func initMonitor(logger *logrus.Logger) (*integritymonitor.IntegrityMonitor, err
 	splunkInsecureSkipVerify := viper.GetBool("splunk-insecure-skip-verify")
 	var alertsSender alerts.Sender
 	if len(splunkUrl) > 0 && len(splunkToken) > 0 {
-		alertsSender = splunk.New(logger, splunkUrl, splunkToken, splunkInsecureSkipVerify)
+		alertsSender = splunk.New(log, splunkUrl, splunkToken, splunkInsecureSkipVerify)
 	}
 
 	// Kube client
-	kubeClient := services.NewKuberService(logger)
+	kubeClient := services.NewKuberService(log)
 	// kube client connection must be placed here with error handling
 
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
 	countWorkers := viper.GetInt("count-workers")
-	fileHasher := filehash.NewFileSystemHasher(logger, algorithm, countWorkers)
+	fileHasher := filehash.NewFileSystemHasher(log, algorithm, countWorkers)
 
 	monitorDelay := viper.GetDuration("duration-time")
 	monitorProc := viper.GetString("process")
 	monitorPath := viper.GetString("monitoring-path")
-	return integritymonitor.New(logger, fileHasher, repository, kubeClient, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm)
+	return integritymonitor.New(log, fileHasher, repository, kubeClient, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm)
 }
 
 func initConfig() {
