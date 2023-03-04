@@ -40,13 +40,13 @@ func New(logger *logrus.Logger, network, addr string, priority syslog.Priority) 
 }
 
 func (sl *SyslogClient) Send(alert alerts.Alert) error {
-	n, err := fmt.Fprintf(sl.writer, sl.syslogMessage(alert))
+	n, err := fmt.Fprintf(sl.writer, "%s", sl.syslogMessage(alert))
 	sl.bytesSent += int64(n)
 	return err
 }
 
 func (sl *SyslogClient) Close() {
-	sl.Close()
+	sl.writer.Close()
 }
 
 func (sl *SyslogClient) syslogMessage(alert alerts.Alert) string {
