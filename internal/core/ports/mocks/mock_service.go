@@ -133,18 +133,18 @@ func (m *MockIHashService) EXPECT() *MockIHashServiceMockRecorder {
 }
 
 // CreateHash mocks base method.
-func (m *MockIHashService) CreateHash(path string) (*api.HashData, error) {
+func (m *MockIHashService) CreateHash(filePath string) (*api.HashData, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateHash", path)
+	ret := m.ctrl.Call(m, "CreateHash", filePath)
 	ret0, _ := ret[0].(*api.HashData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateHash indicates an expected call of CreateHash.
-func (mr *MockIHashServiceMockRecorder) CreateHash(path interface{}) *gomock.Call {
+func (mr *MockIHashServiceMockRecorder) CreateHash(filePath interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateHash", reflect.TypeOf((*MockIHashService)(nil).CreateHash), path)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateHash", reflect.TypeOf((*MockIHashService)(nil).CreateHash), filePath)
 }
 
 // DeleteFromTable mocks base method.

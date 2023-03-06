@@ -201,3 +201,7 @@ dirs:
 .PHONY: buildtools
 buildtools:
 	@docker build -f ./docker/Dockerfile.build -t buildtools:latest ./docker
+
+.PHONY: tmp-test
+tmp-test:
+	go test -timeout 5s -run ^TestWorkersPool$$ -v ./internal/services
