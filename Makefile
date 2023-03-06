@@ -202,6 +202,8 @@ dirs:
 buildtools:
 	@docker build -f ./docker/Dockerfile.build -t buildtools:latest ./docker
 
+# TODO: remove
 .PHONY: tmp-test
 tmp-test:
-	go test -timeout 5s -run ^TestWorkersPool$$ -v ./internal/services
+	go test -timeout 5s -run ^TestChanWalkDir$$ -v ./internal/walker
+	go test -timeout 5s -run ^TestWorkersPool$$ -v ./internal/worker

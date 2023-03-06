@@ -7,13 +7,17 @@ import (
 	"path"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/process"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/walker"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/worker"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
-	"github.com/sirupsen/logrus"
 )
 
 var ErrIntegrityNewFileFoud = errors.New("new file found")
@@ -78,7 +82,8 @@ func (m *IntegrityMonitor) Initialize() error {
 }
 
 func (m *IntegrityMonitor) Run(ctx context.Context) error {
-	err := m.setupIntegrity(ctx)
+	// err := m.setupIntegrity(ctx) // previous TODO: remove
+	err := m.SetupIntegrityWithChannels(ctx) // new w/ channels flow
 	if err != nil {
 		m.logger.WithError(err).Error("failed setup integrity")
 		return err
@@ -134,7 +139,11 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
 		return fmt.Errorf("failed calculate file hashes: %w", err)
 	}
 
-	fileHashesDto, err := m.repository.GetHashData(m.monitoringDirectory, m.algorithm, m.deploymentData)
+	fileHashesDto, err := m.repository.GetHashData(
+		m.monitoringDirectory,
+		m.algorithm,
+		m.deploymentData,
+	)
 	if err != nil {
 		return fmt.Errorf("failed get hash data: %w", err)
 	}
@@ -148,7 +157,12 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
 	for _, fh := range fileHashes {
 		if fhdto, ok := referecenHashes[fh.Path]; ok {
 			if fhdto.Hash != fh.Hash {
-				m.integrityCheckFailed(ErrIntegrityFileMismatch, fh.Path, m.kuberData, m.deploymentData)
+				m.integrityCheckFailed(
+					ErrIntegrityFileMismatch,
+					fh.Path,
+					m.kuberData,
+					m.deploymentData,
+				)
 				return ErrIntegrityFileMismatch
 			}
 			delete(referecenHashes, fh.Path)
@@ -168,7 +182,12 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
 	return err
 }
 
-func (m *IntegrityMonitor) integrityCheckFailed(err error, path string, kubeData *models.KuberData, deploymentData *models.DeploymentData) {
+func (m *IntegrityMonitor) integrityCheckFailed(
+	err error,
+	path string,
+	kubeData *models.KuberData,
+	deploymentData *models.DeploymentData,
+) {
 	switch err {
 	case ErrIntegrityFileMismatch:
 		m.logger.WithField("path", path).Warn("file content missmatch")
@@ -197,4 +216,66 @@ func getProcessPath(procName string, path string) (string, error) {
 		return "", fmt.Errorf("failed build process path: %w", err)
 	}
 	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
+}
+
+func getHashes(
+	ctx context.Context,
+	hashC <-chan filehash.FileHash,
+	// errC <-chan error,
+) []filehash.FileHash {
+	const defaultHashCnt = 100
+	hashes := make([]filehash.FileHash, 0, defaultHashCnt)
+	for v := range hashC {
+		select {
+		case <-ctx.Done():
+			return nil
+		// case <-errC:
+		// 	return nil
+		default:
+		}
+		hashes = append(hashes, v)
+	}
+	return hashes
+}
+
+func (m *IntegrityMonitor) SetupIntegrityWithChannels(ctx context.Context) error {
+	m.logger.Debug("begin setup integrity")
+	m.logger.Trace("begin calculate hashes")
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	// errC := make(chan error)
+	// defer close(errC)
+
+	fileHashes := getHashes(
+		ctx,
+		worker.WorkersPool(
+			viper.GetInt("count-workers"),
+			walker.ChanWalkDir(ctx, m.monitoringDirectory),
+			worker.NewWorker(ctx, viper.GetString("algorithm"), m.logger)),
+		// errC,
+	)
+
+	// TODO: storage w/ channel
+
+	m.logger.WithField("filesCount", len(fileHashes)).Trace("end calculate hashes")
+
+	fileHashesDto := make([]*api.HashData, 0, len(fileHashes))
+	for _, fh := range fileHashes {
+		fileHashesDto = append(fileHashesDto, &api.HashData{
+			Hash:         fh.Hash,
+			FileName:     path.Base(fh.Path),
+			FullFilePath: fh.Path,
+			Algorithm:    m.algorithm,
+		})
+	}
+
+	m.logger.Trace("begin store integrity hashes into storage")
+	err := m.repository.SaveHashData(fileHashesDto, m.deploymentData)
+	if err != nil {
+		return err
+	}
+
+	m.logger.Debug("end setup integrity")
+	return nil
 }

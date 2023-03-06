@@ -37,6 +37,19 @@ func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, 
 	return true, nil
 }
 
+const insertHashQuery = `
+	INSERT INTO hashfiles (
+			file_name,
+			full_file_path,
+			hash_sum,
+			algorithm,
+			name_pod,
+			image_tag,
+			time_of_creation,
+			name_deployment
+		)
+	VALUES($1, $2, $3, $4, $5, $6, $7, $8);`
+
 // SaveHashData iterates through all elements of the slice and triggers the save to database function
 func (ar AppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
 	tx, err := ar.db.Begin()
@@ -45,11 +58,8 @@ func (ar AppRepository) SaveHashData(allHashData []*api.HashData, deploymentData
 		return err
 	}
 
-	query := `INSERT INTO hashfiles (file_name,full_file_path,hash_sum,algorithm,name_pod,image_tag,time_of_creation,
-		name_deployment) VALUES($1,$2,$3,$4,$5,$6,$7,$8);`
-
 	for _, hash := range allHashData {
-		_, err = tx.Exec(query, hash.FileName, hash.FullFilePath, hash.Hash, hash.Algorithm, deploymentData.NamePod,
+		_, err = tx.Exec(insertHashQuery, hash.FileName, hash.FullFilePath, hash.Hash, hash.Algorithm, deploymentData.NamePod,
 			deploymentData.Image, deploymentData.Timestamp, deploymentData.NameDeployment)
 		if err != nil {
 			err = tx.Rollback()
@@ -105,3 +115,5 @@ func (ar AppRepository) DeleteFromTable(nameDeployment string) error {
 	}
 	return nil
 }
+
+// TODO: Tx, bulk insert

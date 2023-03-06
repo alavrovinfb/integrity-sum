@@ -1,15 +1,16 @@
-package services
+package worker
 
 import (
 	"testing"
 
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestWorkersPool(t *testing.T) {
 	namesChannel := make(chan string)
-	hashesChannel := WorkersPool(namesChannel, worker)
+	hashesChannel := WorkersPool(namesChannel, mockWorker)
 	var testData = map[string]struct{}{
 		"name1": {},
 		"name2": {},
@@ -28,17 +29,20 @@ func TestWorkersPool(t *testing.T) {
 	cnt := 0
 	for v := range hashesChannel {
 		logrus.WithField("hash", v).Info("got hash")
-		_, ok := testData[v]
+		_, ok := testData[v.Path]
 		assert.True(t, ok)
 		cnt++
 	}
 	assert.Equal(t, len(testData), cnt)
 }
 
-func worker(ind int, fileNames <-chan string, hashes chan<- string) {
+func mockWorker(ind int, fileNameC <-chan string, hasheC chan<- filehash.FileHash) {
 	logrus.WithField("ind", ind).Info("worker started")
-	for v := range fileNames {
-		hashes <- v
+	for v := range fileNameC {
+		hasheC <- filehash.FileHash{
+			Path: v,
+			Hash: v,
+		}
 	}
 	logrus.WithField("ind", ind).Info("worker stopped")
 }
