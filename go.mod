@@ -10,6 +10,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.1
+	golang.org/x/sync v0.1.0
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
 )
