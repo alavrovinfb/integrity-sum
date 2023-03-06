@@ -1,7 +1,10 @@
 package repositories
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 
@@ -37,7 +40,47 @@ func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, 
 	return true, nil
 }
 
-const insertHashQuery = `
+// const insertHashQuery = `
+// 	INSERT INTO hashfiles (
+// 			file_name,
+// 			full_file_path,
+// 			hash_sum,
+// 			algorithm,
+// 			name_pod,
+// 			image_tag,
+// 			time_of_creation,
+// 			name_deployment
+// 		)
+// 	VALUES($1, $2, $3, $4, $5, $6, $7, $8);`
+
+// SaveHashData iterates through all elements of the slice and triggers the save to database function
+// func (ar AppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
+// 	tx, err := ar.db.Begin()
+// 	if err != nil {
+// 		ar.logger.Error("open transaction error ", err)
+// 		return err
+// 	}
+
+// 	for _, hash := range allHashData {
+// 		_, err = tx.Exec(insertHashQuery, hash.FileName, hash.FullFilePath, hash.Hash, hash.Algorithm, deploymentData.NamePod,
+// 			deploymentData.Image, deploymentData.Timestamp, deploymentData.NameDeployment)
+// 		if err != nil {
+// 			err = tx.Rollback()
+// 			if err != nil {
+// 				ar.logger.Error("err in Rollback", err)
+// 				return err
+// 			}
+// 			ar.logger.Error("err while save data in database ", err)
+// 			return err
+// 		}
+// 	}
+
+// 	return tx.Commit()
+// }
+
+// SaveHashData iterates through all elements of the slice and save them to the DB
+func (ar AppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
+	query := `
 	INSERT INTO hashfiles (
 			file_name,
 			full_file_path,
@@ -48,32 +91,36 @@ const insertHashQuery = `
 			time_of_creation,
 			name_deployment
 		)
-	VALUES($1, $2, $3, $4, $5, $6, $7, $8);`
+	VALUES `
 
-// SaveHashData iterates through all elements of the slice and triggers the save to database function
-func (ar AppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
-	tx, err := ar.db.Begin()
-	if err != nil {
-		ar.logger.Error("open transaction error ", err)
-		return err
+	fieldsCount := 8
+	defaultHashCount := 20
+	valuesString := make([]string, 0, defaultHashCount)
+	args := make([]any, 0, defaultHashCount*fieldsCount)
+
+	i := 0
+	for _, v := range allHashData {
+		valuesString = append(valuesString,
+			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+				i*fieldsCount+1, i*fieldsCount+2, i*fieldsCount+3, i*fieldsCount+4,
+				i*fieldsCount+5, i*fieldsCount+6, i*fieldsCount+7, i*fieldsCount+8))
+		args = append(args,
+			v.FileName,
+			v.FullFilePath,
+			v.Hash,
+			v.Algorithm,
+			deploymentData.NamePod,
+			deploymentData.Image,
+			deploymentData.Timestamp,
+			deploymentData.NameDeployment,
+		)
+		i++
 	}
-
-	for _, hash := range allHashData {
-		_, err = tx.Exec(insertHashQuery, hash.FileName, hash.FullFilePath, hash.Hash, hash.Algorithm, deploymentData.NamePod,
-			deploymentData.Image, deploymentData.Timestamp, deploymentData.NameDeployment)
-		if err != nil {
-			err = tx.Rollback()
-			if err != nil {
-				ar.logger.Error("err in Rollback", err)
-				return err
-			}
-			ar.logger.Error("err while save data in database ", err)
-			return err
-		}
-	}
-
-	return tx.Commit()
+	query += strings.Join(valuesString, ", ")
+	return BulkInsertTx(context.Background(), query, args...)
 }
+
+// TODO: verify bulkInsert with tx.Prepare(pq.CopyIn(...))
 
 // GetHashData retrieves data from the database using the path and algorithm
 func (ar AppRepository) GetHashData(dirFiles, algorithm string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error) {
@@ -115,5 +162,3 @@ func (ar AppRepository) DeleteFromTable(nameDeployment string) error {
 	}
 	return nil
 }
-
-// TODO: Tx, bulk insert

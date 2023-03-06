@@ -37,6 +37,11 @@ func main() {
 	}
 	defer h.Reset()
 
+	// DB connect
+	if _, err := repositories.Open(log); err != nil {
+		log.Fatalf("failed connect to database: %w", err)
+	}
+
 	// Install migration
 	DBMigration(log)
 

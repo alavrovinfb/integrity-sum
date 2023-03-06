@@ -273,6 +273,7 @@ func (m *IntegrityMonitor) SetupIntegrityWithChannels(ctx context.Context) error
 	m.logger.Trace("begin store integrity hashes into storage")
 	err := m.repository.SaveHashData(fileHashesDto, m.deploymentData)
 	if err != nil {
+		m.logger.WithError(err).Error("SaveHashData()")
 		return err
 	}
 
