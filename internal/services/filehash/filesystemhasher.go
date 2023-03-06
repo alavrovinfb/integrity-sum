@@ -55,24 +55,6 @@ func (fhs *FileSystemHasher) CalculateAll(ctx context.Context, dirPath string) (
 	return result, nil
 }
 
-// CalculateInCallback calculate file hashes and call callback for each hash
-func (fhs *FileSystemHasher) CalculateInCallback(ctx context.Context, dirPath string, handlert func(fh FileHash) error) error {
-	fhs.log.Debug("Begin calculate hashes")
-	err := fshasher.Walk(ctx, fhs.log, fhs.workers, dirPath, fhs.alg, func(filePath string, fileHash string) error {
-		fhs.log.Tracef("Hash calculated : %v", filePath)
-		return handlert(FileHash{
-			Path: filePath,
-			Hash: fileHash,
-		})
-	})
-	if err != nil {
-		fhs.log.WithError(err).Debug("Failed calculate hashes")
-		return err
-	}
-	fhs.log.Debug("Success calculate hashes")
-	return nil
-}
-
 // CalculateInChan calculate file hashes and send into chan
 // both result and error channels will be closed at the end
 func (fhs *FileSystemHasher) CalculateInChan(ctx context.Context, dirPath string) (chan FileHash, chan error) {
