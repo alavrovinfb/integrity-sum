@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func ChanWalkDir(ctx context.Context, dirPath string) <-chan string {
+func ChanWalkDir(ctx context.Context, dirPath string, log *logrus.Logger) <-chan string {
 	fileNamesChan := make(chan string)
 	go func() {
 		defer close(fileNamesChan)
@@ -35,7 +35,7 @@ func ChanWalkDir(ctx context.Context, dirPath string) <-chan string {
 				return ctx.Err()
 			}
 		}); err != nil {
-			logrus.WithError(err).Error("file walker")
+			log.WithError(err).Error("file walker")
 		}
 	}()
 

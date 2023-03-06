@@ -10,7 +10,7 @@ import (
 
 func TestWorkersPool(t *testing.T) {
 	namesChannel := make(chan string)
-	hashesChannel := WorkersPool(namesChannel, mockWorker)
+	hashesChannel := WorkersPool(3, namesChannel, mockWorker)
 	var testData = map[string]struct{}{
 		"name1": {},
 		"name2": {},
@@ -36,10 +36,11 @@ func TestWorkersPool(t *testing.T) {
 	assert.Equal(t, len(testData), cnt)
 }
 
-func mockWorker(ind int, fileNameC <-chan string, hasheC chan<- filehash.FileHash) {
+func mockWorker(ind int, fileNameC <-chan string, hashC chan<- filehash.FileHash) {
+	// func mockWorker(ind int, fileNameC <-chan string, hasheC chan<- filehash.FileHash) {
 	logrus.WithField("ind", ind).Info("worker started")
 	for v := range fileNameC {
-		hasheC <- filehash.FileHash{
+		hashC <- filehash.FileHash{
 			Path: v,
 			Hash: v,
 		}

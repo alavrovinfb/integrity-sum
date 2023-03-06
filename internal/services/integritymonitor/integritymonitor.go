@@ -251,7 +251,7 @@ func (m *IntegrityMonitor) SetupIntegrityWithChannels(ctx context.Context) error
 		ctx,
 		worker.WorkersPool(
 			viper.GetInt("count-workers"),
-			walker.ChanWalkDir(ctx, m.monitoringDirectory),
+			walker.ChanWalkDir(ctx, m.monitoringDirectory, m.logger),
 			worker.NewWorker(ctx, viper.GetString("algorithm"), m.logger)),
 		// errC,
 	)

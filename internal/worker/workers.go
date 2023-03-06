@@ -30,18 +30,6 @@ func WorkersPool(countWorkers int, fileNameC <-chan string, w HashWorker) <-chan
 	return hashC
 }
 
-// TODO: ctx, log, algName, errChan
-// func Worker(ind int, fileNameC <-chan string, hashC chan<- filehash.FileHash) {
-// 	h := hasher.NewFileHasher("MD5", logrus.New())
-// 	for v := range fileNameC {
-// 		hash, _ := h.HashFile(v) // TODO: err
-// 		hashC <- filehash.FileHash{
-// 			Path: v,
-// 			Hash: hash,
-// 		}
-// 	}
-// }
-
 func NewWorker(ctx context.Context, algName string, log *logrus.Logger) HashWorker {
 	return func(ind int, fileNameC <-chan string, hashC chan<- filehash.FileHash) {
 		h := hasher.NewFileHasher(algName, log)

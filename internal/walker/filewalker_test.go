@@ -11,12 +11,13 @@ import (
 func TestChanWalkDir(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	log := logrus.New()
 
 	dirName, _ := filepath.Abs("./")
-	fileC := ChanWalkDir(ctx, dirName)
+	fileC := ChanWalkDir(ctx, dirName, log)
 
 	for v := range fileC {
-		logrus.Infof("file: %s", v)
+		log.Infof("file: %s", v)
 		cancel()
 	}
 }
