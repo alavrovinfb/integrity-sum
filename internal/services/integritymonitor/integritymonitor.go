@@ -31,37 +31,23 @@ type IntegrityMonitor struct {
 	logger              *logrus.Logger
 	fshasher            *filehash.FileSystemHasher
 	repository          ports.IAppRepository
-	kubeclient          ports.IKuberService
 	alertSender         alerts.Sender
 	delay               time.Duration
 	algorithm           string
 	monitoringDirectory string
-	kuberData           *models.KuberData
-	deploymentData      *models.DeploymentData
 }
 
 func New(logger *logrus.Logger,
 	fshasher *filehash.FileSystemHasher,
 	repository ports.IAppRepository,
-	kubeclient ports.IKuberService,
 	alertSender alerts.Sender,
 	delay time.Duration,
 	monitorProcess string,
 	monitorProcessPath string,
 	algorithm string,
 ) (*IntegrityMonitor, error) {
+	// TODO: upper layer
 	processPath, err := GetProcessPath(monitorProcess, monitorProcessPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: duplicated w/: GetDataFromK8sAPI()
-	kuberData, err := kubeclient.ConnectionToK8sAPI()
-	if err != nil {
-		return nil, err
-	}
-
-	deploymentData, err := kubeclient.GetDataFromDeployment(kuberData)
 	if err != nil {
 		return nil, err
 	}
@@ -70,23 +56,15 @@ func New(logger *logrus.Logger,
 		logger:              logger,
 		fshasher:            fshasher,
 		repository:          repository,
-		kubeclient:          kubeclient,
 		alertSender:         alertSender,
-		delay:               delay,
+		delay:               delay, // TODO: remove
 		algorithm:           algorithm,
 		monitoringDirectory: processPath,
-		kuberData:           kuberData,
-		deploymentData:      deploymentData,
 	}, nil
 }
 
-func (m *IntegrityMonitor) Initialize() error {
-
-	return nil
-}
-
 func (m *IntegrityMonitor) Run(ctx context.Context) error {
-
+	// TODO: viper.GetDuration("duration-time")
 	ticker := time.NewTicker(m.delay)
 	defer ticker.Stop()
 	for {
@@ -110,7 +88,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	errC := make(chan error)
 	defer close(errC)
 
-	dataK8s, err := services.NewKuberService(log).GetDataFromK8sAPI() // TODO: remove m.kuberData, m.deploymentData
+	dataK8s, err := services.NewKuberService(log).GetDataFromK8sAPI()
 	if err != nil {
 		return err
 	}
@@ -144,15 +122,22 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 }
 
 func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
+	m.logger.Debug("begin check integrity")
 	fileHashes, err := m.fshasher.CalculateAll(ctx, m.monitoringDirectory)
 	if err != nil {
-		return fmt.Errorf("failed calculate file hashes: %w", err)
+		m.logger.WithError(err).Error("failed calculate file hashes")
+		return err
 	}
 
+	k8sData, err := services.NewKuberService(m.logger).GetDataFromK8sAPI()
+	if err != nil {
+		m.logger.WithError(err).Error("get data from k8s API")
+		return err
+	}
 	fileHashesDto, err := m.repository.GetHashData(
 		m.monitoringDirectory,
 		m.algorithm,
-		m.deploymentData,
+		k8sData.DeploymentData,
 	)
 	if err != nil {
 		return fmt.Errorf("failed get hash data: %w", err)
@@ -170,25 +155,26 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
 				m.integrityCheckFailed(
 					ErrIntegrityFileMismatch,
 					fh.Path,
-					m.kuberData,
-					m.deploymentData,
+					k8sData.KuberData,
+					k8sData.DeploymentData,
 				)
 				return ErrIntegrityFileMismatch
 			}
 			delete(referenceHashes, fh.Path)
 		} else {
-			m.integrityCheckFailed(ErrIntegrityNewFileFoud, fh.Path, m.kuberData, m.deploymentData)
+			m.integrityCheckFailed(ErrIntegrityNewFileFoud, fh.Path, k8sData.KuberData, k8sData.DeploymentData)
 			return ErrIntegrityNewFileFoud
 		}
 	}
 
 	if len(referenceHashes) > 0 {
 		for path := range referenceHashes {
-			m.integrityCheckFailed(ErrIntegrityFileDeleted, path, m.kuberData, m.deploymentData)
+			m.integrityCheckFailed(ErrIntegrityFileDeleted, path, k8sData.KuberData, k8sData.DeploymentData)
 			return ErrIntegrityFileDeleted
 		}
 	}
 
+	m.logger.Debug("end check integrity")
 	return err
 }
 
@@ -217,7 +203,7 @@ func (m *IntegrityMonitor) integrityCheckFailed(
 			m.logger.WithError(err).Error("Failed send alert")
 		}
 	}
-	m.kubeclient.RolloutDeployment(kubeData)
+	services.NewKuberService(m.logger).RolloutDeployment(kubeData)
 }
 
 func GetProcessPath(procName string, path string) (string, error) {
@@ -231,7 +217,7 @@ func GetProcessPath(procName string, path string) (string, error) {
 func saveHashes(
 	ctx context.Context,
 	hashC <-chan filehash.FileHash,
-	dd *models.DeploymentData, // TODO: alternative get
+	dd *models.DeploymentData,
 	errC chan<- error,
 ) <-chan int {
 	doneC := make(chan int)

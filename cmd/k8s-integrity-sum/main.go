@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2" // bee2 registration
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
@@ -69,17 +68,6 @@ func main() {
 	})
 }
 
-func setupIntegrity(ctx context.Context, log *logrus.Logger) error {
-	processPath, err := integritymonitor.GetProcessPath(viper.GetString("process"), viper.GetString("monitoring-path"))
-	if err != nil {
-		return err
-	}
-	if err = integritymonitor.SetupIntegrity(ctx, processPath, log); err != nil {
-		return err
-	}
-	return nil
-}
-
 func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error) {
 	// TODO: separated: storage, data models; remove repository, remove repository dependency from the monitor.
 	repository := repositories.NewAppRepository(log, repositories.DB().SQL())
@@ -93,10 +81,6 @@ func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error)
 		alertsSender = splunk.New(log, splunkUrl, splunkToken, splunkInsecureSkipVerify)
 	}
 
-	// Kube client
-	kubeClient := services.NewKuberService(log)
-	// kube client connection must be placed here with error handling
-
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
 	countWorkers := viper.GetInt("count-workers")
@@ -105,7 +89,15 @@ func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error)
 	monitorDelay := viper.GetDuration("duration-time")
 	monitorProc := viper.GetString("process")
 	monitorPath := viper.GetString("monitoring-path")
-	return integritymonitor.New(log, fileHasher, repository, kubeClient, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm)
+	return integritymonitor.New(log, fileHasher, repository, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm)
+}
+
+func setupIntegrity(ctx context.Context, log *logrus.Logger) error {
+	processPath, err := integritymonitor.GetProcessPath(viper.GetString("process"), viper.GetString("monitoring-path"))
+	if err != nil {
+		return err
+	}
+	return integritymonitor.SetupIntegrity(ctx, processPath, log)
 }
 
 func initConfig() {
