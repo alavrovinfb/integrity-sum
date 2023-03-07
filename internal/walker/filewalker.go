@@ -18,13 +18,7 @@ func ChanWalkDir(ctx context.Context, dirPath string, log *logrus.Logger) <-chan
 				return err
 			}
 
-			// skip dir
-			if d.IsDir() {
-				return nil
-			}
-
-			// skip symlink
-			if (d.Type() & fs.ModeSymlink) > 0 {
+			if !d.Type().IsRegular() {
 				return nil
 			}
 
