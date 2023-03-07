@@ -62,7 +62,7 @@ func WithTx(f func(txn *sql.Tx) error) error {
 	return nil
 }
 
-func BulkInsertTx(ctx context.Context, sqlQuery string, args ...any) error {
+func ExecQueryTx(ctx context.Context, sqlQuery string, args ...any) error {
 	return WithTx(func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, sqlQuery, args...)
 		return err
