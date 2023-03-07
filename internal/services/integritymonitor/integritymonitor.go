@@ -12,6 +12,7 @@ import (
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories/data"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
@@ -54,6 +55,7 @@ func New(logger *logrus.Logger,
 		return nil, err
 	}
 
+	// TODO: duplicated w/: GetDataFromK8sAPI()
 	kuberData, err := kubeclient.ConnectionToK8sAPI()
 	if err != nil {
 		return nil, err
@@ -84,8 +86,7 @@ func (m *IntegrityMonitor) Initialize() error {
 }
 
 func (m *IntegrityMonitor) Run(ctx context.Context) error {
-	// err := m.setupIntegrity(ctx) // previous TODO: remove
-	err := m.SetupIntegrityWithChannels(ctx) // new w/ channels flow
+	err := m.setupIntegrity(ctx)
 	if err != nil {
 		m.logger.WithError(err).Error("failed setup integrity")
 		return err
@@ -106,34 +107,52 @@ func (m *IntegrityMonitor) Run(ctx context.Context) error {
 	}
 }
 
+// TODO: make it independent
 func (m *IntegrityMonitor) setupIntegrity(ctx context.Context) error {
 	m.logger.Debug("begin setup integrity")
-	m.logger.Trace("begin calculate hashes")
-	fileHashes, err := m.fshasher.CalculateAll(ctx, m.monitoringDirectory)
-	if err != nil {
-		return fmt.Errorf("failed calculate file hashes: %w", err)
-	}
-	m.logger.WithField("filesCount", len(fileHashes)).Trace("end calculate hashes")
 
-	fileHashesDto := make([]*api.HashData, 0, len(fileHashes))
-	for _, fh := range fileHashes {
-		fileHashesDto = append(fileHashesDto, &api.HashData{
-			Hash:         fh.Hash,
-			FileName:     path.Base(fh.Path),
-			FullFilePath: fh.Path,
-			Algorithm:    m.algorithm,
-		})
-	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	errC := make(chan error)
+	defer close(errC)
 
-	m.logger.Trace("begin store integrity hashes into storage")
-	query, args := data.NewHashFileData().PrepareBatchQuery(fileHashesDto, m.deploymentData)
-	err = repositories.ExecQueryTx(context.Background(), query, args...)
+	dataK8s, err := services.NewKuberService(m.logger).GetDataFromK8sAPI() // TODO: remove m.kuberData, m.deploymentData
 	if err != nil {
 		return err
 	}
 
-	m.logger.Debug("end setup integrity")
-	return nil
+	// monitorProc := viper.GetString("process")
+	// monitorPath := viper.GetString("monitoring-path")
+	// processPath, err := getProcessPath(monitorProcess, monitorProcessPath)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	m.logger.Trace("calculate & save hashes...")
+	for {
+		select {
+		case err := <-ctx.Done():
+			m.logger.Error(err)
+			return nil
+
+		case countHashes := <-saveHashes(
+			ctx,
+			worker.WorkersPool(
+				viper.GetInt("count-workers"),
+				walker.ChanWalkDir(ctx, m.monitoringDirectory, m.logger),
+				worker.NewWorker(ctx, viper.GetString("algorithm"), m.logger),
+			),
+			dataK8s.DeploymentData,
+			errC,
+		):
+			m.logger.WithField("countHashes", countHashes).Info("hashes stored successfully")
+			return nil
+
+		case err := <-errC:
+			m.logger.WithError(err).Error("setup integrity failed")
+			return err
+		}
+	}
 }
 
 func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
@@ -151,14 +170,14 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
 		return fmt.Errorf("failed get hash data: %w", err)
 	}
 
-	referecenHashes := make(map[string]*models.HashDataFromDB, len(fileHashesDto))
+	referenceHashes := make(map[string]*models.HashDataFromDB, len(fileHashesDto))
 
 	for _, fh := range fileHashesDto {
-		referecenHashes[fh.FullFilePath] = fh
+		referenceHashes[fh.FullFilePath] = fh
 	}
 
 	for _, fh := range fileHashes {
-		if fhdto, ok := referecenHashes[fh.Path]; ok {
+		if fhdto, ok := referenceHashes[fh.Path]; ok {
 			if fhdto.Hash != fh.Hash {
 				m.integrityCheckFailed(
 					ErrIntegrityFileMismatch,
@@ -168,15 +187,15 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
 				)
 				return ErrIntegrityFileMismatch
 			}
-			delete(referecenHashes, fh.Path)
+			delete(referenceHashes, fh.Path)
 		} else {
 			m.integrityCheckFailed(ErrIntegrityNewFileFoud, fh.Path, m.kuberData, m.deploymentData)
 			return ErrIntegrityNewFileFoud
 		}
 	}
 
-	if len(referecenHashes) > 0 {
-		for path := range referecenHashes {
+	if len(referenceHashes) > 0 {
+		for path := range referenceHashes {
 			m.integrityCheckFailed(ErrIntegrityFileDeleted, path, m.kuberData, m.deploymentData)
 			return ErrIntegrityFileDeleted
 		}
@@ -260,41 +279,6 @@ func saveHashes(
 	}()
 
 	return doneC
-}
-
-func (m *IntegrityMonitor) SetupIntegrityWithChannels(ctx context.Context) error {
-	m.logger.Debug("begin setup integrity")
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	errC := make(chan error)
-	defer close(errC)
-
-	m.logger.Trace("calculate & save hashes...")
-	for {
-		select {
-		case err := <-ctx.Done():
-			m.logger.Error(err)
-			return nil
-
-		case countHashes := <-saveHashes(
-			ctx,
-			worker.WorkersPool(
-				viper.GetInt("count-workers"),
-				walker.ChanWalkDir(ctx, m.monitoringDirectory, m.logger),
-				worker.NewWorker(ctx, viper.GetString("algorithm"), m.logger),
-			),
-			m.deploymentData,
-			errC,
-		):
-			m.logger.WithField("countHashes", countHashes).Info("hashes stored successfully")
-			return nil
-
-		case err := <-errC:
-			m.logger.WithError(err).Error("setup integrity failed")
-			return err
-		}
-	}
 }
 
 func FileHashDtoDB(algName string, fh *filehash.FileHash) *api.HashData {

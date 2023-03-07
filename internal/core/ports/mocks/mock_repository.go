@@ -8,7 +8,6 @@ import (
 	reflect "reflect"
 
 	models "github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
-	api "github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -77,18 +76,4 @@ func (m *MockIAppRepository) IsExistDeploymentNameInDB(deploymentName string) (b
 func (mr *MockIAppRepositoryMockRecorder) IsExistDeploymentNameInDB(deploymentName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsExistDeploymentNameInDB", reflect.TypeOf((*MockIAppRepository)(nil).IsExistDeploymentNameInDB), deploymentName)
-}
-
-// SaveHashData mocks base method.
-func (m *MockIAppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveHashData", allHashData, deploymentData)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SaveHashData indicates an expected call of SaveHashData.
-func (mr *MockIAppRepositoryMockRecorder) SaveHashData(allHashData, deploymentData interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveHashData", reflect.TypeOf((*MockIAppRepository)(nil).SaveHashData), allHashData, deploymentData)
 }

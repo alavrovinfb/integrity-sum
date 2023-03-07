@@ -37,7 +37,6 @@ func TestWorkersPool(t *testing.T) {
 }
 
 func mockWorker(ind int, fileNameC <-chan string, hashC chan<- filehash.FileHash) {
-	// func mockWorker(ind int, fileNameC <-chan string, hasheC chan<- filehash.FileHash) {
 	logrus.WithField("ind", ind).Info("worker started")
 	for v := range fileNameC {
 		hashC <- filehash.FileHash{

@@ -36,16 +36,6 @@ func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, 
 	return true, nil
 }
 
-// TODO: remove func and use the code directly.
-//
-// SaveHashData prepares & saves Hash data to the DB table.
-// func (ar AppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
-// 	query, args := data.NewHashFileData().PrepareBatchQuery(allHashData, deploymentData)
-// 	return ExecQueryTx(context.Background(), query, args...)
-// }
-
-// TODO: verify bulkInsert with tx.Prepare(pq.CopyIn(...))
-
 // GetHashData retrieves data from the database using the path and algorithm
 func (ar AppRepository) GetHashData(dirFiles, algorithm string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error) {
 	var allHashDataFromDB []*models.HashDataFromDB
