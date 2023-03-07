@@ -12,6 +12,8 @@ import (
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories/data"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/process"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/walker"
@@ -124,7 +126,8 @@ func (m *IntegrityMonitor) setupIntegrity(ctx context.Context) error {
 	}
 
 	m.logger.Trace("begin store integrity hashes into storage")
-	err = m.repository.SaveHashData(fileHashesDto, m.deploymentData)
+	query, args := data.NewHashFileData().PrepareBatchQuery(fileHashesDto, m.deploymentData)
+	err = repositories.ExecQueryTx(context.Background(), query, args...)
 	if err != nil {
 		return err
 	}
@@ -218,65 +221,86 @@ func getProcessPath(procName string, path string) (string, error) {
 	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
 }
 
-func getHashes(
+func saveHashes(
 	ctx context.Context,
 	hashC <-chan filehash.FileHash,
-	// errC <-chan error,
-) []filehash.FileHash {
-	const defaultHashCnt = 100
-	hashes := make([]filehash.FileHash, 0, defaultHashCnt)
-	for v := range hashC {
-		select {
-		case <-ctx.Done():
-			return nil
-		// case <-errC:
-		// 	return nil
-		default:
+	dd *models.DeploymentData, // TODO: alternative get
+	errC chan<- error,
+) <-chan int {
+	doneC := make(chan int)
+
+	go func() {
+		defer close(doneC)
+
+		const defaultHashCnt = 100
+		hashData := make([]*api.HashData, 0, defaultHashCnt)
+		alg := viper.GetString("algorithm")
+		countHashes := 0
+
+		for v := range hashC {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			hashData = append(hashData, FileHashDtoDB(alg, &v))
+			countHashes++
 		}
-		hashes = append(hashes, v)
-	}
-	return hashes
+
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+
+		query, args := data.NewHashFileData().PrepareBatchQuery(hashData, dd)
+		err := repositories.ExecQueryTx(ctx, query, args...)
+		if err != nil {
+			errC <- err
+		}
+		doneC <- countHashes
+	}()
+
+	return doneC
 }
 
 func (m *IntegrityMonitor) SetupIntegrityWithChannels(ctx context.Context) error {
 	m.logger.Debug("begin setup integrity")
-	m.logger.Trace("begin calculate hashes")
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	// errC := make(chan error)
-	// defer close(errC)
+	errC := make(chan error)
+	defer close(errC)
 
-	fileHashes := getHashes(
+	doneC := saveHashes(
 		ctx,
 		worker.WorkersPool(
 			viper.GetInt("count-workers"),
 			walker.ChanWalkDir(ctx, m.monitoringDirectory, m.logger),
 			worker.NewWorker(ctx, viper.GetString("algorithm"), m.logger)),
-		// errC,
+		m.deploymentData,
+		errC,
 	)
 
-	// TODO: storage w/ channel
-
-	m.logger.WithField("filesCount", len(fileHashes)).Trace("end calculate hashes")
-
-	fileHashesDto := make([]*api.HashData, 0, len(fileHashes))
-	for _, fh := range fileHashes {
-		fileHashesDto = append(fileHashesDto, &api.HashData{
-			Hash:         fh.Hash,
-			FileName:     path.Base(fh.Path),
-			FullFilePath: fh.Path,
-			Algorithm:    m.algorithm,
-		})
+	m.logger.Trace("calculate & save hashes...")
+	for {
+		select {
+		case err := <-ctx.Done():
+			m.logger.Error(err)
+			return nil
+		case countHashes := <-doneC:
+			m.logger.WithField("countHashes", countHashes).Info("hashes stored successfully")
+			return nil
+		case err := <-errC:
+			m.logger.WithError(err).Error("setup integrity failed")
+			return err
+		}
 	}
+}
 
-	m.logger.Trace("begin store integrity hashes into storage")
-	err := m.repository.SaveHashData(fileHashesDto, m.deploymentData)
-	if err != nil {
-		m.logger.WithError(err).Error("SaveHashData()")
-		return err
+func FileHashDtoDB(algName string, fh *filehash.FileHash) *api.HashData {
+	return &api.HashData{
+		Hash:         fh.Hash,
+		FileName:     path.Base(fh.Path),
+		FullFilePath: fh.Path,
+		Algorithm:    algName,
 	}
-
-	m.logger.Debug("end setup integrity")
-	return nil
 }

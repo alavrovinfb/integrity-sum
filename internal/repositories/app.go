@@ -1,14 +1,11 @@
 package repositories
 
 import (
-	"context"
 	"database/sql"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories/data"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
 type AppRepository struct {
@@ -42,10 +39,10 @@ func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, 
 // TODO: remove func and use the code directly.
 //
 // SaveHashData prepares & saves Hash data to the DB table.
-func (ar AppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
-	query, args := data.NewHashFileData().PrepareBatchQuery(allHashData, deploymentData)
-	return ExecQueryTx(context.Background(), query, args...)
-}
+// func (ar AppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
+// 	query, args := data.NewHashFileData().PrepareBatchQuery(allHashData, deploymentData)
+// 	return ExecQueryTx(context.Background(), query, args...)
+// }
 
 // TODO: verify bulkInsert with tx.Prepare(pq.CopyIn(...))
 

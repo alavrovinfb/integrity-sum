@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories/data"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/hasher"
 )
@@ -74,7 +77,8 @@ func (hs HashService) CreateHash(fileName string) (*api.HashData, error) {
 
 // SaveHashData accesses the repository to save data to the database
 func (hs HashService) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
-	err := hs.Repository.SaveHashData(allHashData, deploymentData)
+	query, args := data.NewHashFileData().PrepareBatchQuery(allHashData, deploymentData)
+	err := repositories.ExecQueryTx(context.Background(), query, args...)
 	if err != nil {
 		hs.logger.Error("error while saving data to database", err)
 		return err
