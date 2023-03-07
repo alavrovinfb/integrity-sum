@@ -47,11 +47,16 @@ func main() {
 
 	monitor, err := initMonitor(log)
 	if err != nil {
-		log.WithError(err).Fatal("failed initialize integrity monitor")
+		log.WithError(err).Fatal("failed to initialize integrity monitor")
 	}
 
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), log, func(ctx context.Context) {
+		if err = setupIntegrity(ctx, log); err != nil {
+			log.WithError(err).Fatal("failed to setup integrity")
+			return
+		}
+
 		err := monitor.Run(ctx)
 		if err == context.Canceled {
 			log.Info("execution cancelled")
@@ -62,6 +67,17 @@ func main() {
 			return
 		}
 	})
+}
+
+func setupIntegrity(ctx context.Context, log *logrus.Logger) error {
+	processPath, err := integritymonitor.GetProcessPath(viper.GetString("process"), viper.GetString("monitoring-path"))
+	if err != nil {
+		return err
+	}
+	if err = integritymonitor.SetupIntegrity(ctx, processPath, log); err != nil {
+		return err
+	}
+	return nil
 }
 
 func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error) {

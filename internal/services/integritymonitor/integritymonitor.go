@@ -50,7 +50,7 @@ func New(logger *logrus.Logger,
 	monitorProcessPath string,
 	algorithm string,
 ) (*IntegrityMonitor, error) {
-	processPath, err := getProcessPath(monitorProcess, monitorProcessPath)
+	processPath, err := GetProcessPath(monitorProcess, monitorProcessPath)
 	if err != nil {
 		return nil, err
 	}
@@ -86,11 +86,6 @@ func (m *IntegrityMonitor) Initialize() error {
 }
 
 func (m *IntegrityMonitor) Run(ctx context.Context) error {
-	err := m.setupIntegrity(ctx)
-	if err != nil {
-		m.logger.WithError(err).Error("failed setup integrity")
-		return err
-	}
 
 	ticker := time.NewTicker(m.delay)
 	defer ticker.Stop()
@@ -107,49 +102,42 @@ func (m *IntegrityMonitor) Run(ctx context.Context) error {
 	}
 }
 
-// TODO: make it independent
-func (m *IntegrityMonitor) setupIntegrity(ctx context.Context) error {
-	m.logger.Debug("begin setup integrity")
+func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger) error {
+	log.Debug("begin setup integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	errC := make(chan error)
 	defer close(errC)
 
-	dataK8s, err := services.NewKuberService(m.logger).GetDataFromK8sAPI() // TODO: remove m.kuberData, m.deploymentData
+	dataK8s, err := services.NewKuberService(log).GetDataFromK8sAPI() // TODO: remove m.kuberData, m.deploymentData
 	if err != nil {
 		return err
 	}
 
-	// monitorProc := viper.GetString("process")
-	// monitorPath := viper.GetString("monitoring-path")
-	// processPath, err := getProcessPath(monitorProcess, monitorProcessPath)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	m.logger.Trace("calculate & save hashes...")
+	log.Trace("calculate & save hashes...")
 	for {
 		select {
-		case err := <-ctx.Done():
-			m.logger.Error(err)
-			return nil
+		case <-ctx.Done():
+			log.Error(ctx.Err())
+			return ctx.Err()
 
 		case countHashes := <-saveHashes(
 			ctx,
 			worker.WorkersPool(
 				viper.GetInt("count-workers"),
-				walker.ChanWalkDir(ctx, m.monitoringDirectory, m.logger),
-				worker.NewWorker(ctx, viper.GetString("algorithm"), m.logger),
+				walker.ChanWalkDir(ctx, monitoringDirectory, log),
+				worker.NewWorker(ctx, viper.GetString("algorithm"), log),
 			),
 			dataK8s.DeploymentData,
 			errC,
 		):
-			m.logger.WithField("countHashes", countHashes).Info("hashes stored successfully")
+			log.WithField("countHashes", countHashes).Info("hashes stored successfully")
+			log.Debug("end setup integrity")
 			return nil
 
 		case err := <-errC:
-			m.logger.WithError(err).Error("setup integrity failed")
+			log.WithError(err).Error("setup integrity failed")
 			return err
 		}
 	}
@@ -232,7 +220,7 @@ func (m *IntegrityMonitor) integrityCheckFailed(
 	m.kubeclient.RolloutDeployment(kubeData)
 }
 
-func getProcessPath(procName string, path string) (string, error) {
+func GetProcessPath(procName string, path string) (string, error) {
 	pid, err := process.GetPID(procName)
 	if err != nil {
 		return "", fmt.Errorf("failed build process path: %w", err)
