@@ -10,7 +10,7 @@ import (
 	reflect "reflect"
 	sync "sync"
 
-	models "github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	models "github.com/ScienceSoft-Inc/integrity-sum/internal/models"
 	api "github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -162,10 +162,10 @@ func (mr *MockIHashServiceMockRecorder) DeleteFromTable(nameDeployment interface
 }
 
 // GetHashData mocks base method.
-func (m *MockIHashService) GetHashData(dirPath string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error) {
+func (m *MockIHashService) GetHashData(dirPath string, deploymentData *models.DeploymentData) ([]*models.HashData, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHashData", dirPath, deploymentData)
-	ret0, _ := ret[0].([]*models.HashDataFromDB)
+	ret0, _ := ret[0].([]*models.HashData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -177,7 +177,7 @@ func (mr *MockIHashServiceMockRecorder) GetHashData(dirPath, deploymentData inte
 }
 
 // IsDataChanged mocks base method.
-func (m *MockIHashService) IsDataChanged(currentHashData []*api.HashData, hashSumFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) bool {
+func (m *MockIHashService) IsDataChanged(currentHashData []*api.HashData, hashSumFromDB []*models.HashData, deploymentData *models.DeploymentData) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsDataChanged", currentHashData, hashSumFromDB, deploymentData)
 	ret0, _ := ret[0].(bool)

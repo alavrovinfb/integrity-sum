@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
 )
 
 type KuberService struct {

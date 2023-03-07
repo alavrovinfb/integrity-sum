@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -11,9 +12,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/ports"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
@@ -22,18 +22,29 @@ type AppService struct {
 	ports.IHashService
 	ports.IAppRepository
 	ports.IKuberService
+	ports.IReleaseStorageService
+	ports.IHashStorageService
 	alertSender alerts.Sender
 	logger      *logrus.Logger
 }
 
 // NewAppService creates a new struct AppService
-func NewAppService(r *repositories.AppRepository, alertSender alerts.Sender, algorithm string, logger *logrus.Logger) *AppService {
+func NewAppService(
+	r *repositories.AppRepository,
+	alertSender alerts.Sender,
+	serviceReleaseStorage *ReleaseStorageService,
+	serviceHashStorage *HashStorageService,
+	algorithm string,
+	logger *logrus.Logger,
+) *AppService {
 	return &AppService{
-		IHashService:   NewHashService(r, strings.ToUpper(algorithm), logger),
-		IAppRepository: r,
-		IKuberService:  NewKuberService(logger),
-		alertSender:    alertSender,
-		logger:         logger,
+		IHashService:           NewHashService(strings.ToUpper(algorithm), logger),
+		IAppRepository:         r,
+		IKuberService:          NewKuberService(logger),
+		IReleaseStorageService: serviceReleaseStorage,
+		IHashStorageService:    serviceHashStorage,
+		alertSender:            alertSender,
+		logger:                 logger,
 	}
 }
 
@@ -73,12 +84,17 @@ func (as *AppService) IsExistDeploymentNameInDB(deploymentName string) bool {
 // Start getting the hash sum of all files, outputs to os.Stdout and saves to the database
 func (as *AppService) Start(ctx context.Context, dirPath string, deploymentData *models.DeploymentData) error {
 	allHashData := as.LaunchHasher(ctx, dirPath)
-	err := as.IHashService.SaveHashData(allHashData, deploymentData)
+	err := as.IReleaseStorageService.Create(deploymentData)
 	if err != nil {
 		as.logger.Error("Error save hash data to database ", err)
 		return err
 	}
 
+	err = as.IHashStorageService.Create(allHashData, deploymentData)
+	if err != nil {
+		as.logger.Error("Error save hash data to database ", err)
+		return err
+	}
 	return nil
 }
 
@@ -86,13 +102,18 @@ func (as *AppService) Start(ctx context.Context, dirPath string, deploymentData 
 func (as *AppService) Check(ctx context.Context, dirPath string, deploymentData *models.DeploymentData, kuberData *models.KuberData) error {
 	hashDataCurrentByDirPath := as.LaunchHasher(ctx, dirPath)
 
-	dataFromDBbyPodName, err := as.IHashService.GetHashData(dirPath, deploymentData)
+	dataFromDBbyPodName, err := as.IHashStorageService.Get(dirPath, deploymentData)
+	if err != nil {
+		as.logger.Error("Error getting hash data from database ", err)
+		return err
+	}
+	dataFromDBbyRelease, err := as.IReleaseStorageService.Get(deploymentData)
 	if err != nil {
 		as.logger.Error("Error getting hash data from database ", err)
 		return err
 	}
 
-	isDataChanged := as.IHashService.IsDataChanged(hashDataCurrentByDirPath, dataFromDBbyPodName, deploymentData)
+	isDataChanged := as.IHashService.IsDataChanged(hashDataCurrentByDirPath, dataFromDBbyPodName, dataFromDBbyRelease, deploymentData)
 	if isDataChanged {
 
 		// alert sender is optional
@@ -108,7 +129,7 @@ func (as *AppService) Check(ctx context.Context, dirPath string, deploymentData 
 			}
 		}
 
-		err = as.IHashService.DeleteFromTable(deploymentData.NameDeployment)
+		err = as.IReleaseStorageService.Delete(deploymentData.NameDeployment)
 		if err != nil {
 			as.logger.Error("Error while deleting rows in database", err)
 			return err

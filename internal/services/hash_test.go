@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
-	mock_ports "github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports/mocks"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
+	mock_ports "github.com/ScienceSoft-Inc/integrity-sum/internal/ports/mocks"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
@@ -30,16 +30,14 @@ func TestCreateHash(t *testing.T) {
 			mockBehavior: func(s *mock_ports.MockIHashService, path string) {
 				s.EXPECT().CreateHash(path).Return(&api.HashData{
 					Hash:         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-					FileName:     "test.txt",
-					FullFilePath: "test/test.txt",
+					FullFileName: "test/test.txt",
 					Algorithm:    "SHA256",
 				}, nil)
 
 			},
 			expected: &api.HashData{
 				Hash:         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-				FileName:     "test.txt",
-				FullFilePath: "test/test.txt",
+				FullFileName: "test/test.txt",
 				Algorithm:    "SHA256",
 			},
 		},
@@ -50,16 +48,14 @@ func TestCreateHash(t *testing.T) {
 			mockBehavior: func(s *mock_ports.MockIHashService, path string) {
 				s.EXPECT().CreateHash(path).Return(&api.HashData{
 					Hash:         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-					FileName:     "test2.txt",
-					FullFilePath: "test/h",
+					FullFileName: "test/h",
 					Algorithm:    "SHA256",
 				}, nil)
 
 			},
 			expected: &api.HashData{
 				Hash:         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-				FileName:     "test2.txt",
-				FullFilePath: "test/h",
+				FullFileName: "test/h",
 				Algorithm:    "SHA256",
 			},
 		},
@@ -70,16 +66,14 @@ func TestCreateHash(t *testing.T) {
 			mockBehavior: func(s *mock_ports.MockIHashService, path string) {
 				s.EXPECT().CreateHash(path).Return(&api.HashData{
 					Hash:         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-					FileName:     "test.txt",
-					FullFilePath: "test/test.txt",
+					FullFileName: "test/test.txt",
 					Algorithm:    "SHA1",
 				}, nil)
 
 			},
 			expected: &api.HashData{
 				Hash:         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-				FileName:     "test.txt",
-				FullFilePath: "test/test.txt",
+				FullFileName: "test/test.txt",
 				Algorithm:    "SHA1",
 			},
 		},
@@ -134,8 +128,7 @@ func TestSaveHashData(t *testing.T) {
 			name: "error is nil",
 			allHashData: []*api.HashData{{
 				Hash:         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-				FileName:     "test.txt",
-				FullFilePath: "test/test.txt",
+				FullFileName: "test/test.txt",
 				Algorithm:    "SHA256",
 			}},
 			deploymentData: &models.DeploymentData{
@@ -154,8 +147,7 @@ func TestSaveHashData(t *testing.T) {
 			name: "error isn`t nil",
 			allHashData: []*api.HashData{{
 				Hash:         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-				FileName:     "test.txt",
-				FullFilePath: "test/test.txt",
+				FullFileName: "test/test.txt",
 				Algorithm:    "SHA256",
 			}},
 			deploymentData: &models.DeploymentData{
@@ -199,9 +191,9 @@ func TestGetHashData(t *testing.T) {
 		dirFiles       string
 		deploymentData *models.DeploymentData
 		mockBehavior   func(s *mock_ports.MockIHashService, dirFiles string, deploymentData *models.DeploymentData)
-		hashData       []*models.HashDataFromDB
+		hashData       []*models.HashData
 		expectedError  bool
-		expected       []*models.HashDataFromDB
+		expected       []*models.HashData
 	}{
 		{
 			name:     "got hash data from database",
@@ -214,9 +206,9 @@ func TestGetHashData(t *testing.T) {
 				ReleaseName:    "app",
 			},
 			mockBehavior: func(s *mock_ports.MockIHashService, dirFiles string, deploymentData *models.DeploymentData) {
-				s.EXPECT().GetHashData(dirFiles, deploymentData).Return([]*models.HashDataFromDB{}, nil)
+				s.EXPECT().GetHashData(dirFiles, deploymentData).Return([]*models.HashData{}, nil)
 			},
-			expected: []*models.HashDataFromDB{},
+			expected: []*models.HashData{},
 		},
 		{
 			name:     "error isn`t nil",
@@ -229,7 +221,7 @@ func TestGetHashData(t *testing.T) {
 				ReleaseName:    "app",
 			},
 			mockBehavior: func(s *mock_ports.MockIHashService, dirFiles string, deploymentData *models.DeploymentData) {
-				s.EXPECT().GetHashData(dirFiles, deploymentData).Return([]*models.HashDataFromDB{}, errors.New("hashData service didn't get hashData sum"))
+				s.EXPECT().GetHashData(dirFiles, deploymentData).Return([]*models.HashData{}, errors.New("hashData service didn't get hashData sum"))
 			},
 			expectedError: true,
 		},
@@ -304,9 +296,9 @@ func TestIsDataChanged(t *testing.T) {
 	testTable := []struct {
 		name            string
 		currentHashData []*api.HashData
-		hashDataFromDB  []*models.HashDataFromDB
+		hashDataFromDB  []*models.HashData
 		deploymentData  *models.DeploymentData
-		mockBehavior    func(s *mock_ports.MockIHashService, currentHashData []*api.HashData, hashDataFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData)
+		mockBehavior    func(s *mock_ports.MockIHashService, currentHashData []*api.HashData, hashDataFromDB []*models.HashData, deploymentData *models.DeploymentData)
 		expectedError   bool
 		expected        bool
 	}{
@@ -314,19 +306,15 @@ func TestIsDataChanged(t *testing.T) {
 			name: "the current data and the data in the database are the same",
 			currentHashData: []*api.HashData{{
 				Hash:         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-				FileName:     "test.txt",
-				FullFilePath: "test/test.txt",
+				FullFileName: "test/test.txt",
 				Algorithm:    "SHA256",
 			}},
-			hashDataFromDB: []*models.HashDataFromDB{{
-				ID:             1,
-				Hash:           "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-				FileName:       "test.txt",
-				FullFilePath:   "test/test.txt",
-				Algorithm:      "SHA256",
-				ImageContainer: "nginx:latest",
-				NamePod:        "app-nginx-hasher-integrity-6b64487565-l8ltd",
-				NameDeployment: "app-nginx-hasher-integrity",
+			hashDataFromDB: []*models.HashData{{
+				ID:           1,
+				Hash:         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				FullFileName: "test/test.txt",
+				Algorithm:    "SHA256",
+				NamePod:      "app-nginx-hasher-integrity-6b64487565-l8ltd",
 			}},
 			deploymentData: &models.DeploymentData{
 				Image:          "nginx:latest",
@@ -335,16 +323,16 @@ func TestIsDataChanged(t *testing.T) {
 				NameDeployment: "app-nginx-hasher-integrity",
 				ReleaseName:    "app",
 			},
-			mockBehavior: func(s *mock_ports.MockIHashService, currentHashData []*api.HashData, hashDataFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) {
+			mockBehavior: func(s *mock_ports.MockIHashService, currentHashData []*api.HashData, hashDataFromDB []*models.HashData, deploymentData *models.DeploymentData) {
 				s.EXPECT().IsDataChanged(currentHashData, hashDataFromDB, deploymentData).Return(false)
 			},
 		},
 		{
 			name:            "current data and data in database are different",
 			currentHashData: []*api.HashData{{}},
-			hashDataFromDB:  []*models.HashDataFromDB{{}},
+			hashDataFromDB:  []*models.HashData{{}},
 			deploymentData:  &models.DeploymentData{},
-			mockBehavior: func(s *mock_ports.MockIHashService, currentHashData []*api.HashData, hashDataFromDB []*models.HashDataFromDB, deploymentData *models.DeploymentData) {
+			mockBehavior: func(s *mock_ports.MockIHashService, currentHashData []*api.HashData, hashDataFromDB []*models.HashData, deploymentData *models.DeploymentData) {
 				s.EXPECT().IsDataChanged(currentHashData, hashDataFromDB, deploymentData).Return(true)
 			},
 			expected: true,

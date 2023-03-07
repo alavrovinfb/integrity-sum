@@ -3,27 +3,30 @@ package initialize
 import (
 	"context"
 	"fmt"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/connection"
 	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/services"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	splunkclient "github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
 )
 
 func Initialize(ctx context.Context, logger *logrus.Logger) {
 	// Initialize database
-	db, err := repositories.ConnectionToDB(logger)
+	db, err := connection.ConnectionToDB(logger)
 	if err != nil {
 		logger.Fatalf("can't connect to database: %s", err)
 	}
 
 	// Initialize repository
 	repository := repositories.NewAppRepository(logger, db)
+	repositoryHashStorage := repositories.NewHashStorageRepository(logger, db)
+	repositoryReleaseStorage := repositories.NewReleaseStorageRepository(logger, db)
 
 	// Create alert sender
 	splunkUrl := viper.GetString("splunk-url")
@@ -37,7 +40,9 @@ func Initialize(ctx context.Context, logger *logrus.Logger) {
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
 
-	service := services.NewAppService(repository, alertsSender, algorithm, logger)
+	serviceReleaseStorage := services.NewReleaseStorageService(repositoryReleaseStorage, algorithm, logger)
+	serviceHashStorage := services.NewHashStorageService(repositoryHashStorage, algorithm, logger)
+	service := services.NewAppService(repository, alertsSender, serviceReleaseStorage, serviceHashStorage, algorithm, logger)
 
 	// Initialize kubernetesAPI
 	dataFromK8sAPI, err := service.GetDataFromK8sAPI()
@@ -60,6 +65,10 @@ func Initialize(ctx context.Context, logger *logrus.Logger) {
 
 	ticker := time.NewTicker(viper.GetDuration("duration-time"))
 
+	// Initialize сlearing
+	logger.Info("Сlearing the database of old data")
+	err = repositoryReleaseStorage.DeleteOldData()
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func(ctx context.Context, ticker *time.Ticker) {
@@ -70,6 +79,10 @@ func Initialize(ctx context.Context, logger *logrus.Logger) {
 				err = service.Start(ctx, dirPath, dataFromK8sAPI.DeploymentData)
 				if err != nil {
 					logger.Fatalf("Error when starting to get and save hash data %s", err)
+				}
+
+				if err != nil {
+					logger.Errorf("Error when clearing the database of old data %s", err)
 				}
 			} else {
 				logger.Info("Deployment name exists in database, checking data")

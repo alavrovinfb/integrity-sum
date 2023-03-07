@@ -1,11 +1,19 @@
-CREATE TABLE IF NOT EXISTS hashfiles (
+CREATE TABLE IF NOT EXISTS releases (
     id BIGSERIAL PRIMARY KEY,
-    file_name VARCHAR NOT NULL,
-    full_file_path TEXT NOT NULL,
-    algorithm VARCHAR NOT NULL,
-    hash_sum VARCHAR NOT NULL,
-    name_deployment TEXT,
-    name_pod TEXT,
-    time_of_creation VARCHAR (50),
-    image_tag TEXT
+    name TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    image VARCHAR(100)
 );
+
+CREATE TABLE IF NOT EXISTS filehashes (
+    id BIGSERIAL PRIMARY KEY,
+    full_file_name TEXT NOT NULL,
+    algorithm CHAR(16) NOT NULL,
+    hash_sum VARCHAR NOT NULL,
+    name_pod TEXT,
+    release_id BIGINT,
+    FOREIGN KEY (release_id) REFERENCES releases (id) ON DELETE CASCADE
+);
+
+CREATE INDEX filehashes_release_name ON releases (name);
+CREATE INDEX filehashes_release_id ON filehashes (releases_id);

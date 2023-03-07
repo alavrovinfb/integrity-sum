@@ -7,7 +7,7 @@ package mock_ports
 import (
 	reflect "reflect"
 
-	models "github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	models "github.com/ScienceSoft-Inc/integrity-sum/internal/models"
 	api "github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -50,10 +50,10 @@ func (mr *MockIAppRepositoryMockRecorder) DeleteFromTable(nameDeployment interfa
 }
 
 // GetHashData mocks base method.
-func (m *MockIAppRepository) GetHashData(dirFiles, algorithm string, deploymentData *models.DeploymentData) ([]*models.HashDataFromDB, error) {
+func (m *MockIAppRepository) GetHashData(dirFiles, algorithm string, deploymentData *models.DeploymentData) ([]*models.HashData, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHashData", dirFiles, algorithm, deploymentData)
-	ret0, _ := ret[0].([]*models.HashDataFromDB)
+	ret0, _ := ret[0].([]*models.HashData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
