@@ -94,7 +94,10 @@ func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error)
 }
 
 func setupIntegrity(ctx context.Context, log *logrus.Logger) error {
-	processPath, err := integritymonitor.GetProcessPath(viper.GetString("process"), viper.GetString("monitoring-path"))
+	processPath, err := integritymonitor.GetProcessPath(
+		viper.GetString("process"),
+		viper.GetString("monitoring-path"),
+	)
 	if err != nil {
 		return err
 	}

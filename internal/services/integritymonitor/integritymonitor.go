@@ -163,7 +163,12 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 
 	if len(referenceHashes) > 0 {
 		for path := range referenceHashes {
-			m.integrityCheckFailed(ErrIntegrityFileDeleted, path, k8sData.KuberData, k8sData.DeploymentData)
+			m.integrityCheckFailed(
+				ErrIntegrityFileDeleted,
+				path,
+				k8sData.KuberData,
+				k8sData.DeploymentData,
+			)
 			return ErrIntegrityFileDeleted
 		}
 	}
