@@ -270,25 +270,26 @@ func (m *IntegrityMonitor) SetupIntegrityWithChannels(ctx context.Context) error
 	errC := make(chan error)
 	defer close(errC)
 
-	doneC := saveHashes(
-		ctx,
-		worker.WorkersPool(
-			viper.GetInt("count-workers"),
-			walker.ChanWalkDir(ctx, m.monitoringDirectory, m.logger),
-			worker.NewWorker(ctx, viper.GetString("algorithm"), m.logger)),
-		m.deploymentData,
-		errC,
-	)
-
 	m.logger.Trace("calculate & save hashes...")
 	for {
 		select {
 		case err := <-ctx.Done():
 			m.logger.Error(err)
 			return nil
-		case countHashes := <-doneC:
+
+		case countHashes := <-saveHashes(
+			ctx,
+			worker.WorkersPool(
+				viper.GetInt("count-workers"),
+				walker.ChanWalkDir(ctx, m.monitoringDirectory, m.logger),
+				worker.NewWorker(ctx, viper.GetString("algorithm"), m.logger),
+			),
+			m.deploymentData,
+			errC,
+		):
 			m.logger.WithField("countHashes", countHashes).Info("hashes stored successfully")
 			return nil
+
 		case err := <-errC:
 			m.logger.WithError(err).Error("setup integrity failed")
 			return err

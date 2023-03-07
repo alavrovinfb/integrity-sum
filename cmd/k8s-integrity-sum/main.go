@@ -37,13 +37,13 @@ func main() {
 	}
 	defer h.Reset()
 
+	// Install migration
+	DBMigration(log)
+
 	// DB connect
 	if _, err := repositories.Open(log); err != nil {
 		log.Fatalf("failed connect to database: %w", err)
 	}
-
-	// Install migration
-	DBMigration(log)
 
 	monitor, err := initMonitor(log)
 	if err != nil {
@@ -65,12 +65,8 @@ func main() {
 }
 
 func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error) {
-	// Initialize database
-	db, err := repositories.ConnectionToDB(log)
-	if err != nil {
-		return nil, fmt.Errorf("failed connect to database: %w", err)
-	}
-	repository := repositories.NewAppRepository(log, db)
+	// TODO: separated: storage, data models; remove repository, remove repository dependency from the monitor.
+	repository := repositories.NewAppRepository(log, repositories.DB().SQL())
 
 	// Create alert sender
 	splunkUrl := viper.GetString("splunk-url")

@@ -42,6 +42,9 @@ func Close() {
 func DB() *Storage {
 	return db
 }
+func (db *Storage) SQL() *sql.DB {
+	return db.db
+}
 
 func WithTx(f func(txn *sql.Tx) error) error {
 	txn, err := DB().db.Begin()
