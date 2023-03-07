@@ -32,8 +32,6 @@ type IntegrityMonitor struct {
 	fshasher            *filehash.FileSystemHasher
 	repository          ports.IAppRepository
 	alertSender         alerts.Sender
-	delay               time.Duration
-	algorithm           string
 	monitoringDirectory string
 }
 
@@ -41,12 +39,9 @@ func New(logger *logrus.Logger,
 	fshasher *filehash.FileSystemHasher,
 	repository ports.IAppRepository,
 	alertSender alerts.Sender,
-	delay time.Duration,
 	monitorProcess string,
 	monitorProcessPath string,
-	algorithm string,
 ) (*IntegrityMonitor, error) {
-	// TODO: upper layer
 	processPath, err := GetProcessPath(monitorProcess, monitorProcessPath)
 	if err != nil {
 		return nil, err
@@ -57,23 +52,22 @@ func New(logger *logrus.Logger,
 		fshasher:            fshasher,
 		repository:          repository,
 		alertSender:         alertSender,
-		delay:               delay, // TODO: remove
-		algorithm:           algorithm,
 		monitoringDirectory: processPath,
 	}, nil
 }
 
-func (m *IntegrityMonitor) Run(ctx context.Context) error {
-	// TODO: viper.GetDuration("duration-time")
-	ticker := time.NewTicker(m.delay)
+func (m *IntegrityMonitor) Run(ctx context.Context, interval time.Duration, algName string) error {
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			err := m.checkIntegrity(ctx)
+			ticker.Stop()
+			err := m.checkIntegrity(ctx, algName)
 			if err != nil {
 				m.logger.WithError(err).Error("failed check integrity")
 			}
+			ticker.Reset(interval)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -121,7 +115,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	}
 }
 
-func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
+func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) error {
 	m.logger.Debug("begin check integrity")
 	fileHashes, err := m.fshasher.CalculateAll(ctx, m.monitoringDirectory)
 	if err != nil {
@@ -136,7 +130,7 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
 	}
 	fileHashesDto, err := m.repository.GetHashData(
 		m.monitoringDirectory,
-		m.algorithm,
+		algName,
 		k8sData.DeploymentData,
 	)
 	if err != nil {

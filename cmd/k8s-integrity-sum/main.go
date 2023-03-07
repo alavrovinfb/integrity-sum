@@ -5,8 +5,12 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
-	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2" // bee2 registration
+	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
@@ -16,9 +20,6 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/common"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/health"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 func main() {
@@ -56,7 +57,8 @@ func main() {
 			return
 		}
 
-		err := monitor.Run(ctx)
+		// TODO: make it independent
+		err := monitor.Run(ctx, viper.GetDuration("duration-time"), viper.GetString("algorithm"))
 		if err == context.Canceled {
 			log.Info("execution cancelled")
 			return
@@ -84,12 +86,11 @@ func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error)
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
 	countWorkers := viper.GetInt("count-workers")
-	fileHasher := filehash.NewFileSystemHasher(log, algorithm, countWorkers)
+	fileHasher := filehash.NewFileSystemHasher(log, algorithm, countWorkers) // TODO: remove
 
-	monitorDelay := viper.GetDuration("duration-time")
 	monitorProc := viper.GetString("process")
 	monitorPath := viper.GetString("monitoring-path")
-	return integritymonitor.New(log, fileHasher, repository, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm)
+	return integritymonitor.New(log, fileHasher, repository, alertsSender, monitorProc, monitorPath)
 }
 
 func setupIntegrity(ctx context.Context, log *logrus.Logger) error {
