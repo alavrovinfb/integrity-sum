@@ -27,6 +27,7 @@ const (
 	algorithm     = "SHA256"
 	procToMonitor = "sh" // just a placeholder must be set
 	pathToMonitor = "/"
+	clusterName   = "local"
 )
 
 func init() {
@@ -46,6 +47,7 @@ func init() {
 	fsSum.String("algorithm", algorithm, "hashing algorithm for hashing data")
 	fsSum.String("process", procToMonitor, "the name of the process to be monitored by the hasher")
 	fsSum.String("monitoring-path", pathToMonitor, "the service path to be monitored by the hasher")
+	fsSum.String("cluster-name", clusterName, "Name of cluster where monitor deployed, default local")
 	pflag.CommandLine.AddFlagSet(fsSum)
 	if err := viper.BindPFlags(fsSum); err != nil {
 		fmt.Printf("error binding flags: %v", err)
@@ -84,6 +86,19 @@ func init() {
 	viper.BindEnv("splunk-url", "SPLUNK_URL")
 	viper.BindEnv("splunk-token", "SPLUNK_TOKEN")
 	viper.BindEnv("splunk-insecure-skip-verify", "SPLUNK_INSECURE_SKIP_VERIFY")
+
+	fsSys := pflag.NewFlagSet("syslog", pflag.ContinueOnError)
+	fsSys.Bool("syslog-enabled", false, "Enable syslog")
+	fsSys.String("syslog-host", "localhost", "Syslog server host")
+	fsSys.Int("syslog-port", 514, "Syslog server port default 514")
+	fsSys.String("syslog-proto", "tcp", "Syslog communication protocol, possible options tcp/udp, default tcp")
+	pflag.CommandLine.AddFlagSet(fsSys)
+	if err := viper.BindPFlags(fsSys); err != nil {
+		fmt.Printf("error binding flags: %v", err)
+		os.Exit(1)
+	}
+
+	viper.BindEnv("pod-namespace", "POD_NAMESPACE")
 }
 
 func GetDBConnString() string {

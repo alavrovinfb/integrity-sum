@@ -4,7 +4,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type KuberData struct {
+type KubeData struct {
 	Clientset  *kubernetes.Clientset
 	Namespace  string
 	TargetName string
@@ -12,6 +12,6 @@ type KuberData struct {
 }
 
 type DataFromK8sAPI struct {
-	KuberData      *KuberData
+	KubeData       *KubeData
 	DeploymentData *DeploymentData
 }

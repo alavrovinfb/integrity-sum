@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: 0.1.0
+description: A syslog server for cluster wide logging with log rotation
+name: rsyslog
+type: application
+version: 0.1.1

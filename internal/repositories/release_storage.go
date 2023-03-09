@@ -15,7 +15,7 @@ type ReleaseStorage struct {
 	logger *logrus.Logger
 }
 
-// NewHashStorage creates a new struct HashService
+// NewReleaseStorage creates a new repository for working with the releases table
 func NewReleaseStorage(db *sql.DB, alg string, logger *logrus.Logger) *ReleaseStorage {
 	return &ReleaseStorage{
 		db:     db,
@@ -24,7 +24,7 @@ func NewReleaseStorage(db *sql.DB, alg string, logger *logrus.Logger) *ReleaseSt
 	}
 }
 
-// Create accesses the repository to save data to the database
+// Create saves data to the database
 func (rs ReleaseStorage) Create(deploymentData *models.DeploymentData) error {
 	query := `INSERT INTO releases (name, created_at, image) VALUES($1,$2,$3);`
 	_, err := rs.db.Exec(query, deploymentData.NameDeployment, time.Now(), deploymentData.Image)
@@ -36,7 +36,7 @@ func (rs ReleaseStorage) Create(deploymentData *models.DeploymentData) error {
 	return nil
 }
 
-// Get accesses the repository to get data from the database
+// Get gets data from the database
 func (rs ReleaseStorage) Get(deploymentData *models.DeploymentData) (*models.Release, error) {
 	var hashData models.Release
 	query := "SELECT id, name, created_at, image FROM releases WHERE name=$1"
@@ -51,6 +51,7 @@ func (rs ReleaseStorage) Get(deploymentData *models.DeploymentData) (*models.Rel
 
 }
 
+// Delete removes the data with the release name from the database
 func (rs ReleaseStorage) Delete(nameDeployment string) error {
 	query := `DELETE FROM releases WHERE name=$1;`
 	_, err := rs.db.Exec(query, nameDeployment)
@@ -61,6 +62,7 @@ func (rs ReleaseStorage) Delete(nameDeployment string) error {
 	return nil
 }
 
+// DeleteOldData removes data when the threshold is exceeded from the database
 func (rs ReleaseStorage) DeleteOldData() error {
 	// query to delete old data
 	threshold := viper.GetString("threshold")

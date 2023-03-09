@@ -27,6 +27,13 @@ configMap:
   splunkUrl: "" # url to send events https://splunk:8088/services/collector/event
   splunkToken: ""
   splunkInsecureSkipVerify: true
+  syslog:
+    enabled: false
+    host: "rsyslog"
+    port: "514"
+    proto: "tcp"
+  liveness:
+    appName: integritySum
 
 releaseNameDB: ""
 

@@ -1,43 +1,69 @@
 package hasher
 
 import (
-	"encoding/hex"
-	"io"
-	"log"
+	"bytes"
+	"fmt"
 	"os"
 	"testing"
+
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
-const fp = "../../.editorconfig"
+var (
+	testData       = bytes.NewBufferString("some test data for hashing")
+	expectedValues = map[string]string{
+		"MD5":    "7e28b47200542b8a10a949493dbf8d89",
+		"SHA1":   "5c2587b147d1674472623579b5f6248bbf196603",
+		"SHA224": "9a9d024f73dd10793f201d5cf348cf42f6c9709d070a2a100de54fbe",
+		"SHA384": "271afdf2c8143d1a02d646a67d9767a53a0982820b6839d218e62c78bf7299e58841fe5c943606edcc4d1d7b76a58bc4",
+		"SHA512": "60092d6bb71c0b0e7426d97c5291e8548eb776358b1d524da6b2f5af41fa2d255e812c82c2352276f55336ae2aba6c8784ccd1f9099b4e5cb3bb82bf3f7ae357",
+		"SHA256": "2b55aa83baaad32c386dab48ff3c6df02784406a223e8aec570782c9e7bd851d",
+	}
+)
 
-var defaultValues = map[string]string{
-	"MD5":    "f670b69b3d123fa53e3e1848a0b6bf6b",
-	"SHA1":   "da39a3ee5e6b4b0d3255bfef95601890afd80709",
-	"SHA224": "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f",
-	"SHA384": "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b",
-	"SHA512": "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e",
-	"SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+func TestHasher(t *testing.T) {
+	fileName, err := createTmpFile(testData)
+	assert.NoError(t, err, "test file creation")
+	defer func() {
+		os.Remove(fileName)
+		fmt.Println("file removed:", fileName)
+	}()
+	fmt.Println("file created:", fileName)
+
+	testHashAlgs(t, fileName)
+	testRepeated(t, fileName)
 }
 
-func TestNewHashSum(t *testing.T) {
-	hashAlgos := []string{"MD5", "SHA1", "SHA224", "SHA384", "SHA512", "SHA256"}
-	file, err := os.OpenFile(fp, os.O_RDONLY, 0)
+func testHashAlgs(t *testing.T, fileName string) {
+	for alg := range expectedValues {
+		hash, err := NewFileHasher(alg, logrus.New()).HashFile(fileName)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedValues[alg], hash, "alg: %s", alg)
+	}
+}
+
+func testRepeated(t *testing.T, fileName string) {
+	alg := "SHA256"
+	hasher := NewFileHasher(alg, logrus.New())
+	// 1
+	hash, err := hasher.HashFile(fileName)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedValues[alg], hash, "alg: %s", alg)
+	// 2
+	hash, err = hasher.HashFile(fileName)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedValues[alg], hash, "alg: %s", alg)
+}
+
+// Creates temporary file with data in @buf
+func createTmpFile(buf *bytes.Buffer) (string, error) {
+	f, err := os.CreateTemp("/tmp", "test_")
 	if err != nil {
-		log.Printf("Error reading file[%s]: %s", fp, err)
-		t.Fail()
-		return
+		return "", err
 	}
-	for _, v := range hashAlgos {
-		hashSummator := NewHashSum(v)
-		_, err = io.Copy(hashSummator, file)
-		if err != nil {
-			log.Printf("Error reading file[%s] with algorithm[%s]: %s", fp, v, err)
-		}
-		res := hex.EncodeToString(hashSummator.Sum(nil))
-		if res != defaultValues[v] {
-			log.Printf("New hash not corresponding to default value. %s(new hash) != %s(default value)", res, defaultValues[v])
-			t.Fail()
-			return
-		}
-	}
+	defer f.Close()
+
+	_, err = buf.WriteTo(f)
+	return f.Name(), err
 }

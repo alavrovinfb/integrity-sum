@@ -35,6 +35,10 @@ func Open(log *logrus.Logger) (*Storage, error) {
 	return db, err
 }
 
+func Close() {
+	db.db.Close()
+}
+
 func DB() *Storage {
 	return db
 }
