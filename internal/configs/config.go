@@ -18,6 +18,7 @@ const (
 	dbUser              = "postgres"
 	dbPassword          = "postgres"
 	dbConnectionTimeout = 10
+	threshold           = "10 minute"
 )
 
 const (
@@ -57,7 +58,8 @@ func init() {
 	fsDB.String("db-name", dbName, "DB name")
 	fsDB.String("db-user", dbUser, "DB user name")
 	fsDB.String("db-password", dbPassword, "DB user password")
-	fsDB.Int("db-connection-timeout", dbConnectionTimeout, "DB connection timeout")
+	fsDB.Int("db-storage-timeout", dbConnectionTimeout, "DB storage timeout")
+	fsDB.String("threshold", threshold, "threshold for deleting old dates")
 	pflag.CommandLine.AddFlagSet(fsDB)
 	if err := viper.BindPFlags(fsDB); err != nil {
 		fmt.Printf("error binding flags: %v", err)
@@ -68,7 +70,7 @@ func init() {
 	viper.BindEnv("db-name", "DB_NAME")
 	viper.BindEnv("db-user", "DB_USER")
 	viper.BindEnv("db-password", "DB_PASSWORD")
-	viper.BindEnv("db-connection-timeout", "DB_CONNECTION_TIMEOUT")
+	viper.BindEnv("db-storage-timeout", "DB_CONNECTION_TIMEOUT")
 
 	fsSp := pflag.NewFlagSet("splunk", pflag.ContinueOnError)
 	fsSp.String("splunk-url", "", "Splunk HTTP Events Collector URL")
@@ -91,6 +93,6 @@ func GetDBConnString() string {
 		viper.GetString("db-host"),
 		viper.GetInt("db-port"),
 		viper.GetString("db-name"),
-		viper.GetInt("db-connection-timeout"),
+		viper.GetInt("db-storage-timeout"),
 	)
 }

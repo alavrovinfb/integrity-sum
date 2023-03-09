@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"os/exec"
@@ -20,7 +19,6 @@ import (
 
 type AppService struct {
 	ports.IHashService
-	ports.IAppRepository
 	ports.IKuberService
 	ports.IReleaseStorageService
 	ports.IHashStorageService
@@ -30,16 +28,14 @@ type AppService struct {
 
 // NewAppService creates a new struct AppService
 func NewAppService(
-	r *repositories.AppRepository,
 	alertSender alerts.Sender,
-	serviceReleaseStorage *ReleaseStorageService,
-	serviceHashStorage *HashStorageService,
+	serviceReleaseStorage *repositories.ReleaseStorage,
+	serviceHashStorage *repositories.HashStorage,
 	algorithm string,
 	logger *logrus.Logger,
 ) *AppService {
 	return &AppService{
 		IHashService:           NewHashService(strings.ToUpper(algorithm), logger),
-		IAppRepository:         r,
 		IKuberService:          NewKuberService(logger),
 		IReleaseStorageService: serviceReleaseStorage,
 		IHashStorageService:    serviceHashStorage,
@@ -70,15 +66,6 @@ func (as *AppService) LaunchHasher(ctx context.Context, dirPath string) []*api.H
 	allHashData := api.Result(ctx, results)
 
 	return allHashData
-}
-
-// IsExistDeploymentNameInDB checks if the database is empty
-func (as *AppService) IsExistDeploymentNameInDB(deploymentName string) bool {
-	isEmptyDB, err := as.IAppRepository.IsExistDeploymentNameInDB(deploymentName)
-	if err != nil && err != sql.ErrNoRows {
-		as.logger.Fatalf("database check error %s", err)
-	}
-	return isEmptyDB
 }
 
 // Start getting the hash sum of all files, outputs to os.Stdout and saves to the database

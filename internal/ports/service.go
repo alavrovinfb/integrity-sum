@@ -13,7 +13,6 @@ import (
 
 type IAppService interface {
 	GetPID(procName string) (int, error)
-	IsExistDeploymentNameInDB(deploymentName string) bool //+
 	LaunchHasher(ctx context.Context, dirPath string, sig chan os.Signal) []*api.HashData
 	Start(ctx context.Context, dirPath string, sig chan os.Signal, deploymentData *models.DeploymentData) error
 	Check(ctx context.Context, dirPath string, sig chan os.Signal, deploymentData *models.DeploymentData, kuberData *models.KuberData) error
@@ -42,4 +41,6 @@ type IReleaseStorageService interface {
 	Create(deploymentData *models.DeploymentData) error
 	Get(deploymentData *models.DeploymentData) (*models.Release, error)
 	Delete(nameDeployment string) error
+	DeleteOldData() error
+	IsExistDeploymentNameInDB(deploymentName string) bool
 }

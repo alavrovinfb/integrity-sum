@@ -7,23 +7,26 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type HashStorageRepository struct {
-	logger *logrus.Logger
+type HashStorage struct {
 	db     *sql.DB
+	alg    string
+	logger *logrus.Logger
 }
 
-func NewHashStorageRepository(logger *logrus.Logger, db *sql.DB) *HashStorageRepository {
-	return &HashStorageRepository{
-		logger: logger,
+// NewHashStorage creates a new struct HashService
+func NewHashStorage(db *sql.DB, alg string, logger *logrus.Logger) *HashStorage {
+	return &HashStorage{
 		db:     db,
+		alg:    alg,
+		logger: logger,
 	}
 }
 
-// Create iterates through all elements of the slice and triggers the save to database function
-func (hr HashStorageRepository) Create(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
-	tx, err := hr.db.Begin()
+// Create accesses the repository to save data to the database
+func (hs HashStorage) Create(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
+	tx, err := hs.db.Begin()
 	if err != nil {
-		hr.logger.Error("err while saving data in database ", err)
+		hs.logger.Error("err while saving data in database ", err)
 		return err
 	}
 	query := `INSERT INTO filehashes (full_file_name, hash_sum, algorithm, name_pod, release_id)
@@ -34,25 +37,25 @@ func (hr HashStorageRepository) Create(allHashData []*api.HashData, deploymentDa
 		if err != nil {
 			err = tx.Rollback()
 			if err != nil {
-				hr.logger.Error("err in Rollback", err)
+				hs.logger.Error("err in Rollback", err)
 				return err
 			}
-			hr.logger.Error("err while save data in database ", err)
+			hs.logger.Error("err while save data in database ", err)
 			return err
 		}
 	}
 	return tx.Commit()
 }
 
-// GetHashData retrieves data from the database using the path and algorithm
-func (hr HashStorageRepository) Get(dirFiles, algorithm string, deploymentData *models.DeploymentData) ([]*models.HashData, error) {
+// Get accesses the repository to get data from the database
+func (hs HashStorage) Get(dirFiles string, deploymentData *models.DeploymentData) ([]*models.HashData, error) {
 	var allHashDataFromDB []*models.HashData
 
 	query := `SELECT id,full_file_name, hash_sum, algorithm, name_pod
 		FROM filehashes WHERE full_file_name LIKE $1 and algorithm=$2 and name_pod=$3`
-	rows, err := hr.db.Query(query, "%"+dirFiles+"%", algorithm, deploymentData.NamePod)
+	rows, err := hs.db.Query(query, "%"+dirFiles+"%", hs.alg, deploymentData.NamePod)
 	if err != nil {
-		hr.logger.Error(err)
+		hs.logger.Error(err)
 		return nil, err
 	}
 
@@ -63,7 +66,7 @@ func (hr HashStorageRepository) Get(dirFiles, algorithm string, deploymentData *
 		err = rows.Scan(&hashDataFromDB.ID, &hashDataFromDB.FullFileName,
 			&hashDataFromDB.Hash, &hashDataFromDB.Algorithm, &hashDataFromDB.NamePod)
 		if err != nil {
-			hr.logger.Error(err)
+			hs.logger.Error(err)
 			return nil, err
 		}
 		allHashDataFromDB = append(allHashDataFromDB, &hashDataFromDB)

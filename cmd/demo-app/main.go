@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/connection"
 	"os"
 	"os/signal"
 	"runtime"
@@ -13,7 +12,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
@@ -60,17 +58,9 @@ func main() {
 		}
 		flag.Usage()
 	case len(viper.GetString("dirPath")) > 0:
-		//Connection to database
-		db, err := connection.ConnectionToDB(logger)
-		if err != nil {
-			logger.Fatalf("can't connect to database: %s", err)
-		}
-
-		// Initialize repository
-		repository := repositories.NewAppRepository(logger, db)
 
 		// Initialize service
-		service := services.NewAppService(repository, nil, nil, nil, viper.GetString("algorithm"), logger)
+		service := services.NewAppService(nil, nil, nil, viper.GetString("algorithm"), logger)
 
 		jobs := make(chan string)
 		results := make(chan *api.HashData)

@@ -5,89 +5,86 @@ import (
 	"fmt"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"time"
 )
 
-type ReleaseStorageRepository struct {
-	logger *logrus.Logger
+type ReleaseStorage struct {
 	db     *sql.DB
+	alg    string
+	logger *logrus.Logger
 }
 
-func NewReleaseStorageRepository(logger *logrus.Logger, db *sql.DB) *ReleaseStorageRepository {
-	return &ReleaseStorageRepository{
-		logger: logger,
+// NewHashStorage creates a new struct HashService
+func NewReleaseStorage(db *sql.DB, alg string, logger *logrus.Logger) *ReleaseStorage {
+	return &ReleaseStorage{
 		db:     db,
+		alg:    alg,
+		logger: logger,
 	}
 }
 
-// IsExistDeploymentNameInDB checks if the base is empty
-//func (rr ReleaseStorageRepository) IsExist(deploymentName string) (bool, error) {
-//	var id int64
-//	query := `SELECT id FROM releases WHERE name=$1 LIMIT 1;`
-//	row := rr.db.QueryRow(query, deploymentName)
-//	err := row.Scan(&id)
-//	if err != nil {
-//		rr.logger.Error("err while scan row in database ", err)
-//		return false, err
-//	}
-//
-//	return true, nil
-//}
-
-// Create iterates through all elements of the slice and triggers the save to database function
-func (rr ReleaseStorageRepository) Create(deploymentData *models.DeploymentData) error {
-
-	query1 := `INSERT INTO releases (name, created_at, image) VALUES($1,$2,$3);`
-	_, err := rr.db.Exec(query1, deploymentData.NameDeployment, time.Now(), deploymentData.Image)
+// Create accesses the repository to save data to the database
+func (rs ReleaseStorage) Create(deploymentData *models.DeploymentData) error {
+	query := `INSERT INTO releases (name, created_at, image) VALUES($1,$2,$3);`
+	_, err := rs.db.Exec(query, deploymentData.NameDeployment, time.Now(), deploymentData.Image)
 	if err != nil {
-		rr.logger.Error("err while save data in database ", err)
+		rs.logger.Error("error while creating data to database", err)
 		return err
 	}
+	fmt.Println("create releases: ", deploymentData.NameDeployment, time.Now(), deploymentData.Image)
 	return nil
 }
 
-// GetHashData retrieves data from the database using the path and algorithm
-func (rr ReleaseStorageRepository) Get(deploymentData *models.DeploymentData) (*models.Release, error) {
-	var allHashDataFromDB models.Release
+// Get accesses the repository to get data from the database
+func (rs ReleaseStorage) Get(deploymentData *models.DeploymentData) (*models.Release, error) {
+	var hashData models.Release
+	query := "SELECT id, name, created_at, image FROM releases WHERE name=$1"
 
-	query := `SELECT id, name, created_at, image FROM releases WHERE name=$1`
-	row := rr.db.QueryRow(query, deploymentData.NameDeployment)
-	err := row.Scan(&allHashDataFromDB.ID, &allHashDataFromDB.Name, &allHashDataFromDB.CreatedAt, &allHashDataFromDB.Image)
+	row := rs.db.QueryRow(query, deploymentData.NameDeployment)
+	err := row.Scan(&hashData.ID, &hashData.Name, &hashData.CreatedAt, &hashData.Image)
 	if err != nil {
-		rr.logger.Error("err while scan row in database ", err)
+		rs.logger.Error("err while scan row in database ", err)
 		return nil, err
 	}
-	return &allHashDataFromDB, nil
+	return &hashData, nil
+
 }
 
-// DeleteFromTable removes data from the table that matches the name of the deployment
-func (rr ReleaseStorageRepository) Delete(nameDeployment string) error {
+func (rs ReleaseStorage) Delete(nameDeployment string) error {
 	query := `DELETE FROM releases WHERE name=$1;`
-	_, err := rr.db.Exec(query, nameDeployment)
+	_, err := rs.db.Exec(query, nameDeployment)
 	if err != nil {
-		rr.logger.Error("err while deleting rows in database", err)
+		rs.logger.Error("err while deleting rows in database", err)
 		return err
 	}
 	return nil
 }
-func (rr ReleaseStorageRepository) DeleteOldData() error {
-	// Set the threshold for deleting old data
-	threshold := time.Now().AddDate(0, 0, -1) // one day
-	//threshold2 := time.Date(0, 0, 0, 0, 0, 0, 0, time.UTC)
-	//
-	//year, month, dey := time.Now().Add(time.Minute * 10).Date()
-	//loc := time.Now().Location()
-	//needDate := time.Date(year, month, dey, 0, 10, 0, 0, loc)
 
-	start := time.Now()
-	fmt.Println("время текущее", start)
-	//afterThreeMinutes := start.Add(time.Minute * 5)
-	fmt.Println("настало время удалять ", threshold)
-
-	// Delete old data
-	_, err := rr.db.Exec("DELETE FROM releases WHERE created_at < $1", threshold)
+func (rs ReleaseStorage) DeleteOldData() error {
+	// query to delete old data
+	threshold := viper.GetString("threshold")
+	query := "DELETE FROM releases WHERE created_at < (NOW() - INTERVAL 10 MINUTE)"
+	_, err := rs.db.Exec(query, threshold)
 	if err != nil {
-		rr.logger.Error(err)
+		rs.logger.Error("err while deleting rows in database", err)
+		return err
 	}
 	return nil
+}
+
+// IsExistDeploymentNameInDB checks if the database is empty
+func (rs ReleaseStorage) IsExistDeploymentNameInDB(deploymentName string) bool {
+	var count int
+	query := `SELECT COUNT(*) FROM releases WHERE name=$1;`
+	err := rs.db.QueryRow(query, deploymentName).Scan(&count)
+	if err != nil {
+		rs.logger.Fatalf("err while scan row in database %s", err)
+		return false
+	}
+	if count == 0 {
+		rs.logger.Info("no rows in database")
+		return false
+	}
+	return true
 }

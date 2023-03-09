@@ -16,4 +16,4 @@ CREATE TABLE IF NOT EXISTS filehashes (
 );
 
 CREATE INDEX filehashes_release_name ON releases (name);
-CREATE INDEX filehashes_release_id ON filehashes (releases_id);
+CREATE INDEX filehashes_release_id ON filehashes (release_id);
