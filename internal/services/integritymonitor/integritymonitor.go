@@ -23,55 +23,12 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
-var ErrIntegrityNewFileFoud = errors.New("new file found")
-var ErrIntegrityFileDeleted = errors.New("file deleted")
-var ErrIntegrityFileMismatch = errors.New("file content mismatch")
-
-type IntegrityMonitor struct {
-	logger              *logrus.Logger
-	fshasher            *filehash.FileSystemHasher
-	repository          ports.IAppRepository
-	alertSender         alerts.Sender
-	monitoringDirectory string
-}
-
-func New(logger *logrus.Logger,
-	fshasher *filehash.FileSystemHasher,
-	repository ports.IAppRepository,
-	alertSender alerts.Sender,
-	monitorProcess string,
-	monitorProcessPath string,
-) (*IntegrityMonitor, error) {
-	processPath, err := GetProcessPath(monitorProcess, monitorProcessPath)
+func GetProcessPath(procName string, path string) (string, error) {
+	pid, err := process.GetPID(procName)
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("failed build process path: %w", err)
 	}
-
-	return &IntegrityMonitor{
-		logger:              logger,
-		fshasher:            fshasher,
-		repository:          repository,
-		alertSender:         alertSender,
-		monitoringDirectory: processPath,
-	}, nil
-}
-
-func (m *IntegrityMonitor) Run(ctx context.Context, interval time.Duration, algName string) error {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			ticker.Stop()
-			err := m.checkIntegrity(ctx, algName)
-			if err != nil {
-				m.logger.WithError(err).Error("failed check integrity")
-			}
-			ticker.Reset(interval)
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
+	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
 }
 
 func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger) error {
@@ -115,102 +72,53 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	}
 }
 
-func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) error {
-	m.logger.Debug("begin check integrity")
-	fileHashes, err := m.fshasher.CalculateAll(ctx, m.monitoringDirectory)
+func CheckIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger, alertSender alerts.Sender, repo ports.IAppRepository) error {
+	log.Debug("begin check integrity")
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	errC := make(chan error)
+	defer close(errC)
+
+	dataK8s, err := services.NewKuberService(log).GetDataFromK8sAPI()
 	if err != nil {
-		m.logger.WithError(err).Error("failed calculate file hashes")
 		return err
 	}
 
-	k8sData, err := services.NewKuberService(m.logger).GetDataFromK8sAPI()
-	if err != nil {
-		m.logger.WithError(err).Error("get data from k8s API")
-		return err
-	}
-	fileHashesDto, err := m.repository.GetHashData(
-		m.monitoringDirectory,
-		algName,
-		k8sData.DeploymentData,
-	)
-	if err != nil {
-		return fmt.Errorf("failed get hash data: %w", err)
-	}
+	log.Trace("calculate & save hashes...")
+	for {
+		select {
+		case <-ctx.Done():
+			log.Error(ctx.Err())
+			return ctx.Err()
 
-	referenceHashes := make(map[string]*models.HashDataFromDB, len(fileHashesDto))
+		case countHashes := <-compareHashes(
+			ctx,
+			worker.WorkersPool(
+				viper.GetInt("count-workers"),
+				walker.ChanWalkDir(ctx, monitoringDirectory, log),
+				worker.NewWorker(ctx, viper.GetString("algorithm"), log),
+			),
+			repo,
+			monitoringDirectory,
+			viper.GetString("algorithm"),
+			dataK8s.DeploymentData,
+			errC,
+		):
+			log.WithField("countHashes", countHashes).Info("hashes compared successfully")
+			log.Debug("end check integrity")
+			return nil
 
-	for _, fh := range fileHashesDto {
-		referenceHashes[fh.FullFilePath] = fh
-	}
-
-	for _, fh := range fileHashes {
-		if fhdto, ok := referenceHashes[fh.Path]; ok {
-			if fhdto.Hash != fh.Hash {
-				m.integrityCheckFailed(
-					ErrIntegrityFileMismatch,
-					fh.Path,
-					k8sData.KuberData,
-					k8sData.DeploymentData,
-				)
-				return ErrIntegrityFileMismatch
+		case err := <-errC:
+			var integrityError *IntegrityError
+			if errors.As(err, &integrityError) {
+				integrityCheckFailed(integrityError, log, alertSender, dataK8s.KuberData, dataK8s.DeploymentData)
+			} else {
+				log.WithError(err).Error("check integrity failed")
 			}
-			delete(referenceHashes, fh.Path)
-		} else {
-			m.integrityCheckFailed(ErrIntegrityNewFileFoud, fh.Path, k8sData.KuberData, k8sData.DeploymentData)
-			return ErrIntegrityNewFileFoud
+			return err
 		}
 	}
-
-	if len(referenceHashes) > 0 {
-		for path := range referenceHashes {
-			m.integrityCheckFailed(
-				ErrIntegrityFileDeleted,
-				path,
-				k8sData.KuberData,
-				k8sData.DeploymentData,
-			)
-			return ErrIntegrityFileDeleted
-		}
-	}
-
-	m.logger.Debug("end check integrity")
-	return err
-}
-
-func (m *IntegrityMonitor) integrityCheckFailed(
-	err error,
-	path string,
-	kubeData *models.KuberData,
-	deploymentData *models.DeploymentData,
-) {
-	switch err {
-	case ErrIntegrityFileMismatch:
-		m.logger.WithField("path", path).Warn("file content missmatch")
-	case ErrIntegrityNewFileFoud:
-		m.logger.WithField("path", path).Warn("new file found")
-	case ErrIntegrityFileDeleted:
-		m.logger.WithField("path", path).Warn("file deleted")
-	}
-	if m.alertSender != nil {
-		err := m.alertSender.Send(alerts.Alert{
-			Time:    time.Now(),
-			Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
-			Reason:  "mismatch file content",
-			Path:    path,
-		})
-		if err != nil {
-			m.logger.WithError(err).Error("Failed send alert")
-		}
-	}
-	services.NewKuberService(m.logger).RolloutDeployment(kubeData)
-}
-
-func GetProcessPath(procName string, path string) (string, error) {
-	pid, err := process.GetPID(procName)
-	if err != nil {
-		return "", fmt.Errorf("failed build process path: %w", err)
-	}
-	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
 }
 
 func saveHashes(
@@ -236,7 +144,7 @@ func saveHashes(
 			default:
 			}
 
-			hashData = append(hashData, FileHashDtoDB(alg, &v))
+			hashData = append(hashData, fileHashDtoDB(alg, &v))
 			countHashes++
 		}
 
@@ -254,7 +162,92 @@ func saveHashes(
 	return doneC
 }
 
-func FileHashDtoDB(algName string, fh *filehash.FileHash) *api.HashData {
+func compareHashes(
+	ctx context.Context,
+	hashC <-chan filehash.FileHash,
+	repository ports.IAppRepository,
+	directory string,
+	algName string,
+	deploymentData *models.DeploymentData,
+	errC chan<- error,
+) <-chan int {
+	doneC := make(chan int)
+	go func() {
+		defer close(doneC)
+
+		fileHashesDto, err := repository.GetHashData(
+			directory,
+			algName,
+			deploymentData,
+		)
+		if err != nil {
+			errC <- fmt.Errorf("failed get hash data: %w", err)
+			return
+		}
+
+		//convert hashes to map
+		hashesMap := make(map[string]string)
+		for _, h := range fileHashesDto {
+			hashesMap[h.FullFilePath] = h.Hash
+		}
+
+		for v := range hashC {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			if h, ok := hashesMap[v.Path]; ok {
+				if h != v.Hash {
+					errC <- &IntegrityError{Type: ErrTypeFileMismatch, Path: v.Path, Hash: v.Hash}
+					return
+				}
+				delete(hashesMap, v.Path)
+			} else {
+				errC <- &IntegrityError{Type: ErrTypeNewFile, Path: v.Path, Hash: v.Hash}
+				return
+			}
+		}
+		for p, h := range hashesMap {
+			errC <- &IntegrityError{Type: ErrTypeFileDeleted, Path: p, Hash: h}
+			return
+		}
+		doneC <- len(fileHashesDto)
+	}()
+	return doneC
+}
+
+func integrityCheckFailed(
+	err *IntegrityError,
+	log *logrus.Logger,
+	alertSender alerts.Sender,
+	kubeData *models.KuberData,
+	deploymentData *models.DeploymentData,
+) {
+	switch err.Type {
+	case ErrTypeFileMismatch:
+		log.WithField("path", err.Path).Warn("file content missmatch")
+	case ErrTypeNewFile:
+		log.WithField("path", err.Path).Warn("new file found")
+	case ErrTypeFileDeleted:
+		log.WithField("path", err.Path).Warn("file deleted")
+	}
+	if alertSender != nil {
+		err := alertSender.Send(alerts.Alert{
+			Time:    time.Now(),
+			Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
+			Reason:  "mismatch file content",
+			Path:    err.Path,
+		})
+		if err != nil {
+			log.WithError(err).Error("Failed send alert")
+		}
+	}
+	services.NewKuberService(log).RolloutDeployment(kubeData)
+}
+
+func fileHashDtoDB(algName string, fh *filehash.FileHash) *api.HashData {
 	return &api.HashData{
 		Hash:         fh.Hash,
 		FileName:     path.Base(fh.Path),
