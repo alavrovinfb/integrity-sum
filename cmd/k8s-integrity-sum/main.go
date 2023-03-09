@@ -5,9 +5,12 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
-	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2" // bee2 registration
+	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
@@ -17,9 +20,6 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/common"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/health"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 func main() {
@@ -40,14 +40,25 @@ func main() {
 	// Install migration
 	DBMigration(log)
 
+	// DB connect
+	if _, err := repositories.Open(log); err != nil {
+		log.Fatalf("failed connect to database: %w", err)
+	}
+
 	monitor, err := initMonitor(log)
 	if err != nil {
-		log.WithError(err).Fatal("failed initialize integrity monitor")
+		log.WithError(err).Fatal("failed to initialize integrity monitor")
 	}
 
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), log, func(ctx context.Context) {
-		err := monitor.Run(ctx)
+		if err = setupIntegrity(ctx, log); err != nil {
+			log.WithError(err).Fatal("failed to setup integrity")
+			return
+		}
+
+		// TODO: make it independent
+		err := monitor.Run(ctx, viper.GetDuration("duration-time"), viper.GetString("algorithm"))
 		if err == context.Canceled {
 			log.Info("execution cancelled")
 			return
@@ -60,12 +71,8 @@ func main() {
 }
 
 func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error) {
-	// Initialize database
-	db, err := repositories.ConnectionToDB(log)
-	if err != nil {
-		return nil, fmt.Errorf("failed connect to database: %w", err)
-	}
-	repository := repositories.NewAppRepository(log, db)
+	// TODO: separated: storage, data models; remove repository, remove repository dependency from the monitor.
+	repository := repositories.NewAppRepository(log, repositories.DB().SQL())
 
 	// Create alert sender
 	splunkUrl := viper.GetString("splunk-url")
@@ -76,19 +83,25 @@ func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error)
 		alertsSender = splunk.New(log, splunkUrl, splunkToken, splunkInsecureSkipVerify)
 	}
 
-	// Kube client
-	kubeClient := services.NewKubeService(log)
-	// kube client connection must be placed here with error handling
-
 	// Initialize service
 	algorithm := viper.GetString("algorithm")
 	countWorkers := viper.GetInt("count-workers")
-	fileHasher := filehash.NewFileSystemHasher(log, algorithm, countWorkers)
+	fileHasher := filehash.NewFileSystemHasher(log, algorithm, countWorkers) // TODO: remove
 
-	monitorDelay := viper.GetDuration("duration-time")
 	monitorProc := viper.GetString("process")
 	monitorPath := viper.GetString("monitoring-path")
-	return integritymonitor.New(log, fileHasher, repository, kubeClient, alertsSender, monitorDelay, monitorProc, monitorPath, algorithm)
+	return integritymonitor.New(log, fileHasher, repository, alertsSender, monitorProc, monitorPath)
+}
+
+func setupIntegrity(ctx context.Context, log *logrus.Logger) error {
+	processPath, err := integritymonitor.GetProcessPath(
+		viper.GetString("process"),
+		viper.GetString("monitoring-path"),
+	)
+	if err != nil {
+		return err
+	}
+	return integritymonitor.SetupIntegrity(ctx, processPath, log)
 }
 
 func initConfig() {

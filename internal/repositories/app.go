@@ -6,7 +6,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
 type AppRepository struct {
@@ -35,34 +34,6 @@ func (ar AppRepository) IsExistDeploymentNameInDB(deploymentName string) (bool, 
 		return false, nil
 	}
 	return true, nil
-}
-
-// SaveHashData iterates through all elements of the slice and triggers the save to database function
-func (ar AppRepository) SaveHashData(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
-	tx, err := ar.db.Begin()
-	if err != nil {
-		ar.logger.Error("open transaction error ", err)
-		return err
-	}
-
-	query := `INSERT INTO hashfiles (file_name,full_file_path,hash_sum,algorithm,name_pod,image_tag,time_of_creation,
-		name_deployment) VALUES($1,$2,$3,$4,$5,$6,$7,$8);`
-
-	for _, hash := range allHashData {
-		_, err = tx.Exec(query, hash.FileName, hash.FullFilePath, hash.Hash, hash.Algorithm, deploymentData.NamePod,
-			deploymentData.Image, deploymentData.Timestamp, deploymentData.NameDeployment)
-		if err != nil {
-			err = tx.Rollback()
-			if err != nil {
-				ar.logger.Error("err in Rollback", err)
-				return err
-			}
-			ar.logger.Error("err while save data in database ", err)
-			return err
-		}
-	}
-
-	return tx.Commit()
 }
 
 // GetHashData retrieves data from the database using the path and algorithm
