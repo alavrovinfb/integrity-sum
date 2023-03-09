@@ -23,6 +23,12 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
+const (
+	IntegrityMessageNewFileFound = "new file found"
+	IntegrityMessageFileDeleted  = "file deleted"
+	IntegrityMessageFileMismatch = "file content mismatch"
+)
+
 func GetProcessPath(procName string, path string) (string, error) {
 	pid, err := process.GetPID(procName)
 	if err != nil {
@@ -110,12 +116,7 @@ func CheckIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 			return nil
 
 		case err := <-errC:
-			var integrityError *IntegrityError
-			if errors.As(err, &integrityError) {
-				integrityCheckFailed(integrityError, log, alertSender, dataK8s.KuberData, dataK8s.DeploymentData)
-			} else {
-				log.WithError(err).Error("check integrity failed")
-			}
+			integrityCheckFailed(err, log, alertSender, dataK8s.KuberData, dataK8s.DeploymentData)
 			return err
 		}
 	}
@@ -219,26 +220,37 @@ func compareHashes(
 }
 
 func integrityCheckFailed(
-	err *IntegrityError,
+	err error,
 	log *logrus.Logger,
 	alertSender alerts.Sender,
 	kubeData *models.KuberData,
 	deploymentData *models.DeploymentData,
 ) {
-	switch err.Type {
-	case ErrTypeFileMismatch:
-		log.WithField("path", err.Path).Warn("file content missmatch")
-	case ErrTypeNewFile:
-		log.WithField("path", err.Path).Warn("new file found")
-	case ErrTypeFileDeleted:
-		log.WithField("path", err.Path).Warn("file deleted")
+	var msg string
+	var path string
+	var integrityError *IntegrityError
+	if errors.As(err, &integrityError) {
+		path = integrityError.Path
+		switch integrityError.Type {
+		case ErrTypeFileMismatch:
+			msg = IntegrityMessageFileMismatch
+		case ErrTypeNewFile:
+			msg = IntegrityMessageNewFileFound
+		case ErrTypeFileDeleted:
+			msg = IntegrityMessageFileDeleted
+		}
+		log.WithError(err).WithField("path", integrityError.Path).Error("check integrity failed")
+	} else {
+		msg = err.Error()
+		log.WithError(err).Error("check integrity failed")
 	}
+
 	if alertSender != nil {
 		err := alertSender.Send(alerts.Alert{
 			Time:    time.Now(),
 			Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
-			Reason:  "mismatch file content",
-			Path:    err.Path,
+			Reason:  msg,
+			Path:    path,
 		})
 		if err != nil {
 			log.WithError(err).Error("Failed send alert")
