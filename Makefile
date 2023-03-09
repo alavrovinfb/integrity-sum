@@ -201,3 +201,16 @@ dirs:
 .PHONY: buildtools
 buildtools:
 	@docker build -f ./docker/Dockerfile.build -t buildtools:latest ./docker
+
+# TODO: remove
+.PHONY: tmp-test
+tmp-test:
+	go test -timeout 5s -run ^TestChanWalkDir$$ -v ./internal/walker
+	go test -timeout 5s -run ^TestWorkersPool$$ -v ./internal/worker
+
+# TODO: remove
+.PHONY: rerun
+rerun:
+	-helm uninstall app
+	make build docker kind-load-images
+	DB_USER=user DB_PASSWORD=user DB_NAME=user make helm-database helm-app
