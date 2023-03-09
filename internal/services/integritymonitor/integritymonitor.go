@@ -82,7 +82,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	errC := make(chan error)
 	defer close(errC)
 
-	dataK8s, err := services.NewKuberService(log).GetDataFromK8sAPI()
+	dataK8s, err := services.NewKubeService(log).GetDataFromK8sAPI()
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 		return err
 	}
 
-	k8sData, err := services.NewKuberService(m.logger).GetDataFromK8sAPI()
+	k8sData, err := services.NewKubeService(m.logger).GetDataFromK8sAPI()
 	if err != nil {
 		m.logger.WithError(err).Error("get data from k8s API")
 		return err
@@ -149,14 +149,14 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 				m.integrityCheckFailed(
 					ErrIntegrityFileMismatch,
 					fh.Path,
-					k8sData.KuberData,
+					k8sData.KubeData,
 					k8sData.DeploymentData,
 				)
 				return ErrIntegrityFileMismatch
 			}
 			delete(referenceHashes, fh.Path)
 		} else {
-			m.integrityCheckFailed(ErrIntegrityNewFileFoud, fh.Path, k8sData.KuberData, k8sData.DeploymentData)
+			m.integrityCheckFailed(ErrIntegrityNewFileFoud, fh.Path, k8sData.KubeData, k8sData.DeploymentData)
 			return ErrIntegrityNewFileFoud
 		}
 	}
@@ -166,7 +166,7 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 			m.integrityCheckFailed(
 				ErrIntegrityFileDeleted,
 				path,
-				k8sData.KuberData,
+				k8sData.KubeData,
 				k8sData.DeploymentData,
 			)
 			return ErrIntegrityFileDeleted
@@ -180,7 +180,7 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 func (m *IntegrityMonitor) integrityCheckFailed(
 	err error,
 	path string,
-	kubeData *models.KuberData,
+	kubeData *models.KubeData,
 	deploymentData *models.DeploymentData,
 ) {
 	switch err {
@@ -202,7 +202,7 @@ func (m *IntegrityMonitor) integrityCheckFailed(
 			m.logger.WithError(err).Error("Failed send alert")
 		}
 	}
-	services.NewKuberService(m.logger).RolloutDeployment(kubeData)
+	services.NewKubeService(m.logger).RolloutDeployment(kubeData)
 }
 
 func GetProcessPath(procName string, path string) (string, error) {
