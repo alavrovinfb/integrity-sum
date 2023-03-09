@@ -77,7 +77,7 @@ func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error)
 	}
 
 	// Kube client
-	kubeClient := services.NewKuberService(log)
+	kubeClient := services.NewKubeService(log)
 	// kube client connection must be placed here with error handling
 
 	// Initialize service

@@ -29,7 +29,7 @@ type IntegrityMonitor struct {
 	delay               time.Duration
 	algorithm           string
 	monitoringDirectory string
-	kuberData           *models.KuberData
+	kuberData           *models.KubeData
 	deploymentData      *models.DeploymentData
 }
 
@@ -48,7 +48,7 @@ func New(logger *logrus.Logger,
 		return nil, err
 	}
 
-	kuberData, err := kubeclient.ConnectionToK8sAPI()
+	kuberData, err := kubeclient.GetKubeData()
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context) error {
 	return err
 }
 
-func (m *IntegrityMonitor) integrityCheckFailed(err error, path string, kubeData *models.KuberData, deploymentData *models.DeploymentData) {
+func (m *IntegrityMonitor) integrityCheckFailed(err error, path string, kubeData *models.KubeData, deploymentData *models.DeploymentData) {
 	switch err {
 	case ErrIntegrityFileMismatch:
 		m.logger.WithField("path", path).Warn("file content missmatch")
