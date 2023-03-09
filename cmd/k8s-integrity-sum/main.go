@@ -6,12 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
-
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
@@ -21,6 +18,9 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/common"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/health"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 func main() {
@@ -57,14 +57,20 @@ func main() {
 		alertsSender = splunk.New(log, splunkUrl, splunkToken, splunkInsecureSkipVerify)
 	}
 
+	kubeClient := services.NewKubeService(log)
+	_, err = kubeClient.Connect()
+	if err != nil {
+		log.Fatalf("failed connect to kubernetes: %w", err)
+	}
+
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), log, func(ctx context.Context) {
-		if err = setupIntegrity(ctx, log); err != nil {
+		if err = setupIntegrity(ctx, log, kubeClient); err != nil {
 			log.WithError(err).Fatal("failed to setup integrity")
 			return
 		}
 
-		err := runCheckIntegrity(ctx, log, alertsSender, repository)
+		err := runCheckIntegrity(ctx, log, alertsSender, repository, kubeClient)
 		if err == context.Canceled {
 			log.Info("execution cancelled")
 			return
@@ -76,7 +82,7 @@ func main() {
 	})
 }
 
-func setupIntegrity(ctx context.Context, log *logrus.Logger) error {
+func setupIntegrity(ctx context.Context, log *logrus.Logger, kubeClient *services.KubeClient) error {
 	processPath, err := integritymonitor.GetProcessPath(
 		viper.GetString("process"),
 		viper.GetString("monitoring-path"),
@@ -84,10 +90,10 @@ func setupIntegrity(ctx context.Context, log *logrus.Logger) error {
 	if err != nil {
 		return err
 	}
-	return integritymonitor.SetupIntegrity(ctx, processPath, log)
+	return integritymonitor.SetupIntegrity(ctx, processPath, log, kubeClient)
 }
 
-func runCheckIntegrity(ctx context.Context, log *logrus.Logger, alertSender alerts.Sender, repository ports.IAppRepository) error {
+func runCheckIntegrity(ctx context.Context, log *logrus.Logger, alertSender alerts.Sender, repository ports.IAppRepository, kubeClient *services.KubeClient) error {
 
 	processPath, err := integritymonitor.GetProcessPath(
 		viper.GetString("process"),
@@ -99,7 +105,7 @@ func runCheckIntegrity(ctx context.Context, log *logrus.Logger, alertSender aler
 
 	t := time.NewTicker(viper.GetDuration("duration-time"))
 	for range t.C {
-		err := integritymonitor.CheckIntegrity(ctx, processPath, log, alertSender, repository)
+		err := integritymonitor.CheckIntegrity(ctx, processPath, log, alertSender, kubeClient, repository)
 		if err != nil {
 			return err
 		}

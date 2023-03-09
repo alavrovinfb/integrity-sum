@@ -37,7 +37,7 @@ func GetProcessPath(procName string, path string) (string, error) {
 	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
 }
 
-func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger) error {
+func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger, kubeClient *services.KubeClient) error {
 	log.Debug("begin setup integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -45,7 +45,11 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	errC := make(chan error)
 	defer close(errC)
 
-	dataK8s, err := services.NewKuberService(log).GetDataFromK8sAPI()
+	kubeData, err := kubeClient.GetKubeData()
+	if err != nil {
+		return err
+	}
+	deploymentData, err := kubeClient.GetDataFromDeployment(kubeData)
 	if err != nil {
 		return err
 	}
@@ -64,7 +68,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 				walker.ChanWalkDir(ctx, monitoringDirectory, log),
 				worker.NewWorker(ctx, viper.GetString("algorithm"), log),
 			),
-			dataK8s.DeploymentData,
+			deploymentData,
 			errC,
 		):
 			log.WithField("countHashes", countHashes).Info("hashes stored successfully")
@@ -78,7 +82,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	}
 }
 
-func CheckIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger, alertSender alerts.Sender, repo ports.IAppRepository) error {
+func CheckIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger, alertSender alerts.Sender, kubeClient *services.KubeClient, repo ports.IAppRepository) error {
 	log.Debug("begin check integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -86,7 +90,11 @@ func CheckIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	errC := make(chan error)
 	defer close(errC)
 
-	dataK8s, err := services.NewKuberService(log).GetDataFromK8sAPI()
+	kubeData, err := kubeClient.GetKubeData()
+	if err != nil {
+		return err
+	}
+	deploymentDta, err := kubeClient.GetDataFromDeployment(kubeData)
 	if err != nil {
 		return err
 	}
@@ -108,7 +116,7 @@ func CheckIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 			repo,
 			monitoringDirectory,
 			viper.GetString("algorithm"),
-			dataK8s.DeploymentData,
+			deploymentDta,
 			errC,
 		):
 			log.WithField("countHashes", countHashes).Info("hashes compared successfully")
@@ -116,7 +124,7 @@ func CheckIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 			return nil
 
 		case err := <-errC:
-			integrityCheckFailed(err, log, alertSender, dataK8s.KuberData, dataK8s.DeploymentData)
+			integrityCheckFailed(err, log, alertSender, kubeClient)
 			return err
 		}
 	}
@@ -223,8 +231,7 @@ func integrityCheckFailed(
 	err error,
 	log *logrus.Logger,
 	alertSender alerts.Sender,
-	kubeData *models.KuberData,
-	deploymentData *models.DeploymentData,
+	kubeClient *services.KubeClient,
 ) {
 	var msg string
 	var path string
@@ -245,6 +252,18 @@ func integrityCheckFailed(
 		log.WithError(err).Error("check integrity failed")
 	}
 
+	kubeData, err := kubeClient.GetKubeData()
+	if err != nil {
+		log.WithError(err).Error("failed get kubernetes data")
+		return
+	}
+
+	deploymentData, err := kubeClient.GetDataFromDeployment(kubeData)
+	if err != nil {
+		log.WithError(err).Error("failed get kubernetes deployment data")
+		return
+	}
+
 	if alertSender != nil {
 		err := alertSender.Send(alerts.Alert{
 			Time:    time.Now(),
@@ -256,7 +275,7 @@ func integrityCheckFailed(
 			log.WithError(err).Error("Failed send alert")
 		}
 	}
-	services.NewKuberService(log).RolloutDeployment(kubeData)
+	kubeClient.RolloutDeployment(kubeData)
 }
 
 func fileHashDtoDB(algName string, fh *filehash.FileHash) *api.HashData {

@@ -1,9 +1,5 @@
 package models
 
-import (
-	"k8s.io/client-go/kubernetes"
-)
-
 type HashDataFromDB struct {
 	ID             int
 	Hash           string
@@ -15,8 +11,7 @@ type HashDataFromDB struct {
 	NameDeployment string
 }
 
-type KuberData struct {
-	Clientset  *kubernetes.Clientset
+type KubeData struct {
 	Namespace  string
 	TargetName string
 	TargetType string
@@ -31,6 +26,6 @@ type DeploymentData struct {
 }
 
 type DataFromK8sAPI struct {
-	KuberData      *KuberData
+	KubeData       *KubeData
 	DeploymentData *DeploymentData
 }
