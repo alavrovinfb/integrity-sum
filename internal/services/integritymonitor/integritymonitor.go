@@ -11,7 +11,6 @@ import (
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories/data"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/process"
@@ -98,6 +97,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 			),
 			dataK8s.DeploymentData,
 			errC,
+			log,
 		):
 			log.WithField("countHashes", countHashes).Info("hashes stored successfully")
 			log.Debug("end setup integrity")
@@ -123,6 +123,15 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 		m.logger.WithError(err).Error("get data from k8s API")
 		return err
 	}
+	//relesesDto, err := repositories.NewReleaseStorage(
+	//	repositories.DB().SQL(),
+	//	algName,
+	//	m.logger,
+	//).Get(k8sData.DeploymentData)
+	//if err != nil {
+	//	return fmt.Errorf("failed get releases data: %w", err)
+	//}
+
 	fileHashesDto, err := repositories.NewHashStorage(
 		repositories.DB().SQL(),
 		algName,
@@ -216,6 +225,7 @@ func saveHashes(
 	hashC <-chan filehash.FileHash,
 	dd *models.DeploymentData,
 	errC chan<- error,
+	logger *logrus.Logger,
 ) <-chan int {
 	doneC := make(chan int)
 
@@ -238,11 +248,18 @@ func saveHashes(
 			countHashes++
 		}
 
-		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		defer cancel()
+		//ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		//defer cancel()
 
-		query, args := data.NewHashFileData().PrepareBatchQuery(hashData, dd)
-		err := repositories.ExecQueryTx(ctx, query, args...)
+		//query, args := data.NewHashFileData().PrepareBatchQuery(hashData, dd)
+		logger.Info("saveHashes - hashData", hashData)
+		err := repositories.NewReleaseStorage(repositories.DB().SQL(), alg, logger).Create(dd)
+		//err := repositories.ExecQueryTx(ctx, query, args...)
+		if err != nil {
+			errC <- err
+		}
+		err = repositories.NewHashStorage(repositories.DB().SQL(), alg, logger).Create(hashData, dd)
+		//err := repositories.ExecQueryTx(ctx, query, args...)
 		if err != nil {
 			errC <- err
 		}
