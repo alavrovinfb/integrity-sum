@@ -105,7 +105,6 @@ func CheckIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 		case <-ctx.Done():
 			log.Error(ctx.Err())
 			return ctx.Err()
-
 		case countHashes := <-compareHashes(
 			ctx,
 			worker.WorkersPool(
@@ -122,7 +121,6 @@ func CheckIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 			log.WithField("countHashes", countHashes).Info("hashes compared successfully")
 			log.Debug("end check integrity")
 			return nil
-
 		case err := <-errC:
 			integrityCheckFailed(err, log, alertSender, kubeClient)
 			return err
