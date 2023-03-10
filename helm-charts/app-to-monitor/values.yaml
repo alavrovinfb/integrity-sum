@@ -40,5 +40,5 @@ releaseNameDB: ""
 # The DB storage data. Should be overridden by actual values
 db:
   port: 5432
-  database: "user"
-  username: "user"
+  database: ""
+  username: ""

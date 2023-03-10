@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"time"
 )
 
@@ -65,9 +64,8 @@ func (rs ReleaseStorage) Delete(nameDeployment string) error {
 // DeleteOldData removes data when the threshold is exceeded from the database
 func (rs ReleaseStorage) DeleteOldData() error {
 	// query to delete old data
-	threshold := viper.GetString("threshold")
 	query := "DELETE FROM releases WHERE created_at < (NOW() - INTERVAL 10 MINUTE)"
-	_, err := rs.db.Exec(query, threshold)
+	_, err := rs.db.Exec(query)
 	if err != nil {
 		rs.logger.Error("err while deleting rows in database", err)
 		return err

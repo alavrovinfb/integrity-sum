@@ -18,7 +18,6 @@ const (
 	dbUser              = "postgres"
 	dbPassword          = "postgres"
 	dbConnectionTimeout = 10
-	threshold           = "10 minute"
 )
 
 const (
@@ -61,7 +60,6 @@ func init() {
 	fsDB.String("db-user", dbUser, "DB user name")
 	fsDB.String("db-password", dbPassword, "DB user password")
 	fsDB.Int("db-storage-timeout", dbConnectionTimeout, "DB storage timeout")
-	fsDB.String("threshold", threshold, "threshold for deleting old dates")
 	pflag.CommandLine.AddFlagSet(fsDB)
 	if err := viper.BindPFlags(fsDB); err != nil {
 		fmt.Printf("error binding flags: %v", err)
