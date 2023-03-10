@@ -4,20 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/process"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/walker"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/worker"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
 var ErrIntegrityNewFileFoud = errors.New("new file found")
@@ -123,17 +122,18 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 		m.logger.WithError(err).Error("get data from k8s API")
 		return err
 	}
-	//relesesDto, err := repositories.NewReleaseStorage(
-	//	repositories.DB().SQL(),
-	//	algName,
-	//	m.logger,
-	//).Get(k8sData.DeploymentData)
-	//if err != nil {
-	//	return fmt.Errorf("failed get releases data: %w", err)
-	//}
 
-	fileHashesDto, err := repositories.NewHashStorage(
-		repositories.DB().SQL(),
+	err = data.NewReleaseStorage(
+		data.DB().SQL(),
+		algName,
+		m.logger,
+	).Update(k8sData.DeploymentData.NameDeployment)
+	if err != nil {
+		return fmt.Errorf("failed update releases data: %w", err)
+	}
+
+	fileHashesDto, err := data.NewHashStorage(
+		data.DB().SQL(),
 		algName,
 		m.logger,
 	).Get(
@@ -144,7 +144,7 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 		return fmt.Errorf("failed get hash data: %w", err)
 	}
 
-	referenceHashes := make(map[string]*models.HashData, len(fileHashesDto))
+	referenceHashes := make(map[string]*data.HashData, len(fileHashesDto))
 
 	for _, fh := range fileHashesDto {
 		referenceHashes[fh.FullFileName] = fh
@@ -233,7 +233,7 @@ func saveHashes(
 		defer close(doneC)
 
 		const defaultHashCnt = 100
-		hashData := make([]*api.HashData, 0, defaultHashCnt)
+		hashData := make([]*data.HashData, 0, defaultHashCnt)
 		alg := viper.GetString("algorithm")
 		countHashes := 0
 
@@ -252,13 +252,12 @@ func saveHashes(
 		//defer cancel()
 
 		//query, args := data.NewHashFileData().PrepareBatchQuery(hashData, dd)
-		logger.Info("saveHashes - hashData", hashData)
-		err := repositories.NewReleaseStorage(repositories.DB().SQL(), alg, logger).Create(dd)
+		err := data.NewReleaseStorage(data.DB().SQL(), alg, logger).Create(dd)
 		//err := repositories.ExecQueryTx(ctx, query, args...)
 		if err != nil {
 			errC <- err
 		}
-		err = repositories.NewHashStorage(repositories.DB().SQL(), alg, logger).Create(hashData, dd)
+		err = data.NewHashStorage(data.DB().SQL(), alg, logger).Create(hashData, dd)
 		//err := repositories.ExecQueryTx(ctx, query, args...)
 		if err != nil {
 			errC <- err
@@ -269,8 +268,8 @@ func saveHashes(
 	return doneC
 }
 
-func FileHashDtoDB(algName string, fh *filehash.FileHash) *api.HashData {
-	return &api.HashData{
+func FileHashDtoDB(algName string, fh *filehash.FileHash) *data.HashData {
+	return &data.HashData{
 		Hash:         fh.Hash,
 		FullFileName: fh.Path,
 		Algorithm:    algName,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -12,7 +13,6 @@ import (
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/integritymonitor"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"
@@ -41,7 +41,7 @@ func main() {
 	DBMigration(log)
 
 	// DB connect
-	if _, err := repositories.Open(log); err != nil {
+	if _, err := data.Open(log); err != nil {
 		log.Fatalf("failed connect to database: %w", err)
 	}
 

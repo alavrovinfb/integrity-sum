@@ -5,7 +5,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//go:generate mockgen -source=service.go -destination=mocks/mock_service.go
+//go:generate mockgen -source=k8s.go -destination=mocks/mock_k8s.go
 
 type IKuberService interface {
 	Connect() (*kubernetes.Clientset, error)

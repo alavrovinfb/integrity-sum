@@ -1,12 +1,19 @@
-package repositories
+package data
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
 	"github.com/sirupsen/logrus"
 	"time"
 )
+
+type Release struct {
+	ID        int
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Image     string
+}
 
 type ReleaseStorage struct {
 	db     *sql.DB
@@ -25,29 +32,27 @@ func NewReleaseStorage(db *sql.DB, alg string, logger *logrus.Logger) *ReleaseSt
 
 // Create saves data to the database
 func (rs ReleaseStorage) Create(deploymentData *models.DeploymentData) error {
-	query := `INSERT INTO releases (name, created_at, image) VALUES($1,$2,$3);`
-	_, err := rs.db.Exec(query, deploymentData.NameDeployment, time.Now(), deploymentData.Image)
+	query := `INSERT INTO releases (name, created_at, updated_at, image) VALUES($1,$2,$3,$4);`
+	_, err := rs.db.Exec(query, deploymentData.NameDeployment, time.Now(), time.Now(), deploymentData.Image)
 	if err != nil {
 		rs.logger.Error("error while creating data to database", err)
 		return err
 	}
-	fmt.Println("create releases: ", deploymentData.NameDeployment, time.Now(), deploymentData.Image)
 	return nil
 }
 
 // Get gets data from the database
-func (rs ReleaseStorage) Get(deploymentData *models.DeploymentData) (*models.Release, error) {
-	var hashData models.Release
-	query := "SELECT id, name, created_at, image FROM releases WHERE name=$1"
+func (rs ReleaseStorage) Get(deploymentData *models.DeploymentData) (*Release, error) {
+	var hashData Release
+	query := "SELECT id, name, created_at, updated_at, image FROM releases WHERE name=$1"
 
 	row := rs.db.QueryRow(query, deploymentData.NameDeployment)
-	err := row.Scan(&hashData.ID, &hashData.Name, &hashData.CreatedAt, &hashData.Image)
+	err := row.Scan(&hashData.ID, &hashData.Name, &hashData.CreatedAt, &hashData.UpdatedAt, &hashData.Image)
 	if err != nil {
 		rs.logger.Error("err while scan row in database ", err)
 		return nil, err
 	}
 	return &hashData, nil
-
 }
 
 // Delete removes the data with the release name from the database
@@ -87,4 +92,16 @@ func (rs ReleaseStorage) IsExistDeploymentNameInDB(deploymentName string) bool {
 		return false
 	}
 	return true
+}
+
+// Update changes column updated_at with current timestamp
+func (rs ReleaseStorage) Update(deploymentName string) error {
+	rs.logger.Debug("update timestamp releases")
+	query := `UPDATE  releases SET updated_at=NOW() WHERE name=$1;`
+	_, err := rs.db.Exec(query, deploymentName)
+	if err != nil {
+		rs.logger.Error("error while updating timestamp to database", err)
+		return err
+	}
+	return nil
 }

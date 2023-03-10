@@ -37,7 +37,7 @@ configMap:
 
 releaseNameDB: ""
 
-# The DB storage data. Should be overridden by actual values
+# The DB connection data. Should be overridden by actual values
 db:
   port: 5432
   database: ""

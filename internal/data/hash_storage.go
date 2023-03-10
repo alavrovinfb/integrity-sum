@@ -1,11 +1,18 @@
-package repositories
+package data
 
 import (
 	"database/sql"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 	"github.com/sirupsen/logrus"
 )
+
+type HashData struct {
+	ID           int
+	Hash         string
+	FullFileName string
+	Algorithm    string
+	NamePod      string
+}
 
 type HashStorage struct {
 	db     *sql.DB
@@ -23,7 +30,7 @@ func NewHashStorage(db *sql.DB, alg string, logger *logrus.Logger) *HashStorage 
 }
 
 // Create accesses the repository to save data to the database
-func (hs HashStorage) Create(allHashData []*api.HashData, deploymentData *models.DeploymentData) error {
+func (hs HashStorage) Create(allHashData []*HashData, deploymentData *models.DeploymentData) error {
 	tx, err := hs.db.Begin()
 	if err != nil {
 		hs.logger.Error("err while saving data in database ", err)
@@ -48,8 +55,8 @@ func (hs HashStorage) Create(allHashData []*api.HashData, deploymentData *models
 }
 
 // Get accesses the repository to get data from the database
-func (hs HashStorage) Get(dirFiles string, deploymentData *models.DeploymentData) ([]*models.HashData, error) {
-	var allHashDataFromDB []*models.HashData
+func (hs HashStorage) Get(dirFiles string, deploymentData *models.DeploymentData) ([]*HashData, error) {
+	var allHashDataFromDB []*HashData
 
 	query := `SELECT id,full_file_name, hash_sum, algorithm, name_pod
 		FROM filehashes WHERE full_file_name LIKE $1 and algorithm=$2 and name_pod=$3`
@@ -62,7 +69,7 @@ func (hs HashStorage) Get(dirFiles string, deploymentData *models.DeploymentData
 	defer rows.Close()
 
 	for rows.Next() {
-		var hashDataFromDB models.HashData
+		var hashDataFromDB HashData
 		err = rows.Scan(&hashDataFromDB.ID, &hashDataFromDB.FullFileName,
 			&hashDataFromDB.Hash, &hashDataFromDB.Algorithm, &hashDataFromDB.NamePod)
 		if err != nil {
