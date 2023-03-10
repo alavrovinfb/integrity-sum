@@ -7,12 +7,12 @@ import (
 	"time"
 
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/ports"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/integritymonitor"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/integritymonitor"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
@@ -46,8 +46,6 @@ func main() {
 		log.Fatalf("failed connect to database: %w", err)
 	}
 
-	repository := repositories.NewAppRepository(log, repositories.DB().SQL())
-
 	// 	// Create alert sender
 	splunkUrl := viper.GetString("splunk-url")
 	splunkToken := viper.GetString("splunk-token")
@@ -62,15 +60,23 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed connect to kubernetes: %w", err)
 	}
+	kubeData, err := kubeClient.GetKubeData()
+	if err != nil {
+		log.Fatalf("failed get kube data: %w", err)
+	}
+	deploymentData, err := kubeClient.GetDataFromDeployment(kubeData)
+	if err != nil {
+		log.Fatalf("failed get deployment data: %w", err)
+	}
 
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), log, func(ctx context.Context) {
-		if err = setupIntegrity(ctx, log, kubeClient); err != nil {
+		if err = setupIntegrity(ctx, log, deploymentData); err != nil {
 			log.WithError(err).Fatal("failed to setup integrity")
 			return
 		}
 
-		err := runCheckIntegrity(ctx, log, alertsSender, repository, kubeClient)
+		err := runCheckIntegrity(ctx, log, alertsSender, deploymentData, kubeClient)
 		if err == context.Canceled {
 			log.Info("execution cancelled")
 			return
@@ -82,7 +88,7 @@ func main() {
 	})
 }
 
-func setupIntegrity(ctx context.Context, log *logrus.Logger, kubeClient *services.KubeClient) error {
+func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *models.DeploymentData) error {
 	processPath, err := integritymonitor.GetProcessPath(
 		viper.GetString("process"),
 		viper.GetString("monitoring-path"),
@@ -90,10 +96,10 @@ func setupIntegrity(ctx context.Context, log *logrus.Logger, kubeClient *service
 	if err != nil {
 		return err
 	}
-	return integritymonitor.SetupIntegrity(ctx, processPath, log, kubeClient)
+	return integritymonitor.SetupIntegrity(ctx, processPath, log, deploymentData)
 }
 
-func runCheckIntegrity(ctx context.Context, log *logrus.Logger, alertSender alerts.Sender, repository ports.IAppRepository, kubeClient *services.KubeClient) error {
+func runCheckIntegrity(ctx context.Context, log *logrus.Logger, alertSender alerts.Sender, deploymentData *models.DeploymentData, kubeClient *services.KubeClient) error {
 
 	processPath, err := integritymonitor.GetProcessPath(
 		viper.GetString("process"),
@@ -105,7 +111,7 @@ func runCheckIntegrity(ctx context.Context, log *logrus.Logger, alertSender aler
 
 	t := time.NewTicker(viper.GetDuration("duration-time"))
 	for range t.C {
-		err := integritymonitor.CheckIntegrity(ctx, processPath, log, alertSender, kubeClient, repository)
+		err := integritymonitor.CheckIntegrity(ctx, log, processPath, alertSender, deploymentData, kubeClient)
 		if err != nil {
 			return err
 		}

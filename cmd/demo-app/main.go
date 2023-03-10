@@ -12,8 +12,9 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/walker"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/worker"
 )
 
 // Initializes the binding of the flag to a variable that must run before the main() function
@@ -47,7 +48,12 @@ func main() {
 	})
 }
 
-func run(ctx context.Context, logger *logrus.Logger) {
+func run(ctx context.Context, log *logrus.Logger) {
+	hashesChan := worker.WorkersPool(
+		viper.GetInt("count-workers"),
+		walker.ChanWalkDir(ctx, viper.GetString("dirPath"), log),
+		worker.NewWorker(ctx, viper.GetString("algorithm"), log),
+	)
 	switch {
 	case viper.GetBool("doHelp"):
 		flag.Usage = func() {
@@ -59,28 +65,20 @@ func run(ctx context.Context, logger *logrus.Logger) {
 		}
 		flag.Usage()
 	case len(viper.GetString("dirPath")) > 0:
-		hashservice := filehash.NewFileSystemHasher(logger, viper.GetString("algorithm"), viper.GetInt("count-workers"))
-		resultChan, errChan := hashservice.CalculateInChan(ctx, viper.GetString("dirPath"))
-
 		for {
 			select {
-			case hashData, ok := <-resultChan:
+			case hashData, ok := <-hashesChan:
 				if ok {
 					fmt.Printf("%s %s\n", hashData.Hash, hashData.Path)
 				} else {
-					resultChan = nil
+					return
 				}
-			case err := <-errChan:
-				if err != nil {
-					fmt.Printf("error: %v\n", err)
-				}
-				return
 			case <-ctx.Done():
 				fmt.Println("program termination after receiving a signal")
 				return
 			}
 		}
 	default:
-		logger.Println("use the -h flag on the command line to see all the flags in this app")
+		log.Println("use the -h flag on the command line to see all the flags in this app")
 	}
 }
