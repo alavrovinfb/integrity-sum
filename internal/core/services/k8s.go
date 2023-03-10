@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -140,13 +141,32 @@ func (ks *KubeClient) GetDataFromDeployment(kubeData *models.KubeData) (*models.
 
 // RolloutDeployment rolls out deployment
 func (ks *KubeClient) RolloutDeployment(kubeData *models.KubeData) error {
+	var err error
 	patchData := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().Format(time.RFC3339))
-	_, err := kubeData.Clientset.AppsV1().Deployments(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
+
+	switch kubeData.TargetType {
+	case "deployment":
+		// Restarting the deployments
+		ks.logger.Printf("### 🔄 Restarting the deployment %v", kubeData.TargetName)
+		_, err = kubeData.Clientset.AppsV1().Deployments(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
+	case "daemonset":
+		// Restarting the daemonsets
+		ks.logger.Printf("### 🔄 Restarting the daemonset %v", kubeData.TargetName)
+		_, err = kubeData.Clientset.AppsV1().DaemonSets(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
+	case "statefulset":
+		// Restarting the statefulsets
+		ks.logger.Printf("### 🔄 Restarting the statefulset %v", kubeData.TargetName)
+		_, err = kubeData.Clientset.AppsV1().StatefulSets(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
+	default:
+		ks.logger.Printf("### 🚫 Target %v, named %v is not supported!", kubeData.TargetType, kubeData.TargetName)
+		return errors.New("target is not supported")
+	}
+
 	if err != nil {
 		ks.logger.Printf("### 👎 Warning: Failed to patch %v, restart failed: %v", kubeData.TargetType, err)
 		return err
-	} else {
-		ks.logger.Printf("### ✅ Target %v, named %v was restarted!", kubeData.TargetType, kubeData.TargetName)
 	}
+
+	ks.logger.Printf("### ✅ Target %v, named %v was restarted!", kubeData.TargetType, kubeData.TargetName)
 	return nil
 }
