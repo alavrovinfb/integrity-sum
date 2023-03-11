@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 )
 
 type HashFile interface {
-	PrepareBatchQuery(hd []*api.HashData, dd *models.DeploymentData) (string, []any)
+	PrepareBatchQuery(hd []*data.HashData, dd *k8s.DeploymentData) (string, []any)
 }
 type hashFile struct{}
 
@@ -17,7 +17,7 @@ func NewHashFileData() HashFile {
 	return &hashFile{}
 }
 
-func (o *hashFile) PrepareBatchQuery(hd []*api.HashData, dd *models.DeploymentData) (string, []any) {
+func (o *hashFile) PrepareBatchQuery(hd []*data.HashData, dd *k8s.DeploymentData) (string, []any) {
 	query := `
 	INSERT INTO hashfiles (
 			file_name,

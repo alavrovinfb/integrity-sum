@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/services"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/process"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/walker"
@@ -75,7 +74,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	errC := make(chan error)
 	defer close(errC)
 
-	dataK8s, err := services.NewKubeService(log).GetDataFromK8sAPI()
+	dataK8s, err := k8s.NewKubeService(log).GetDataFromK8sAPI()
 	if err != nil {
 		return err
 	}
@@ -117,7 +116,7 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 		return err
 	}
 
-	k8sData, err := services.NewKubeService(m.logger).GetDataFromK8sAPI()
+	k8sData, err := k8s.NewKubeService(m.logger).GetDataFromK8sAPI()
 	if err != nil {
 		m.logger.WithError(err).Error("get data from k8s API")
 		return err
@@ -187,8 +186,8 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 func (m *IntegrityMonitor) integrityCheckFailed(
 	err error,
 	path string,
-	kubeData *models.KubeData,
-	deploymentData *models.DeploymentData,
+	kubeData *k8s.KubeData,
+	deploymentData *k8s.DeploymentData,
 ) {
 	switch err {
 	case ErrIntegrityFileMismatch:
@@ -209,7 +208,7 @@ func (m *IntegrityMonitor) integrityCheckFailed(
 			m.logger.WithError(err).Error("Failed send alert")
 		}
 	}
-	services.NewKubeService(m.logger).RolloutDeployment(kubeData)
+	k8s.NewKubeService(m.logger).RolloutDeployment(kubeData)
 }
 
 func GetProcessPath(procName string, path string) (string, error) {
@@ -223,7 +222,7 @@ func GetProcessPath(procName string, path string) (string, error) {
 func saveHashes(
 	ctx context.Context,
 	hashC <-chan filehash.FileHash,
-	dd *models.DeploymentData,
+	dd *k8s.DeploymentData,
 	errC chan<- error,
 	logger *logrus.Logger,
 ) <-chan int {

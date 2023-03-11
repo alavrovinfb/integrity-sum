@@ -59,7 +59,7 @@ func init() {
 	fsDB.String("db-name", dbName, "DB name")
 	fsDB.String("db-user", dbUser, "DB user name")
 	fsDB.String("db-password", dbPassword, "DB user password")
-	fsDB.Int("db-connection-timeout", dbConnectionTimeout, "DB storage timeout")
+	fsDB.Int("db-connection-timeout", dbConnectionTimeout, "DB connection timeout")
 	pflag.CommandLine.AddFlagSet(fsDB)
 	if err := viper.BindPFlags(fsDB); err != nil {
 		fmt.Printf("error binding flags: %v", err)

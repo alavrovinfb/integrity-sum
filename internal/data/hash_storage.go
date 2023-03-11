@@ -2,9 +2,17 @@ package data
 
 import (
 	"database/sql"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
+
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 	"github.com/sirupsen/logrus"
 )
+
+//go:generate mockgen -source=hash_storage.go -destination=mocks/mock_hash_storage.go
+
+type IHashStorage interface {
+	Create(allHashData []*HashData, deploymentData *k8s.DeploymentData) error
+	Get(dirPath string, deploymentData *k8s.DeploymentData) ([]*HashData, error)
+}
 
 type HashData struct {
 	ID           int
@@ -20,7 +28,7 @@ type HashStorage struct {
 	logger *logrus.Logger
 }
 
-// NewHashStorage creates a new struct HashService
+// NewHashStorage creates a new HashStorage structure to work with the database table.
 func NewHashStorage(db *sql.DB, alg string, logger *logrus.Logger) *HashStorage {
 	return &HashStorage{
 		db:     db,
@@ -29,8 +37,8 @@ func NewHashStorage(db *sql.DB, alg string, logger *logrus.Logger) *HashStorage 
 	}
 }
 
-// Create accesses the repository to save data to the database
-func (hs HashStorage) Create(allHashData []*HashData, deploymentData *models.DeploymentData) error {
+// Create saves data to the database
+func (hs HashStorage) Create(allHashData []*HashData, deploymentData *k8s.DeploymentData) error {
 	tx, err := hs.db.Begin()
 	if err != nil {
 		hs.logger.Error("err while saving data in database ", err)
@@ -54,8 +62,8 @@ func (hs HashStorage) Create(allHashData []*HashData, deploymentData *models.Dep
 	return tx.Commit()
 }
 
-// Get accesses the repository to get data from the database
-func (hs HashStorage) Get(dirFiles string, deploymentData *models.DeploymentData) ([]*HashData, error) {
+// Get gets data from the database
+func (hs HashStorage) Get(dirFiles string, deploymentData *k8s.DeploymentData) ([]*HashData, error) {
 	var allHashDataFromDB []*HashData
 
 	query := `SELECT id,full_file_name, hash_sum, algorithm, name_pod

@@ -2,17 +2,29 @@ package data
 
 import (
 	"database/sql"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/models"
-	"github.com/sirupsen/logrus"
 	"time"
+
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
+	"github.com/sirupsen/logrus"
 )
 
+//go:generate mockgen -source=release_storage.go -destination=mocks/mock_release_storage.go
+
+type IReleaseStorage interface {
+	Create(deploymentData *k8s.DeploymentData) error
+	Get(deploymentData *k8s.DeploymentData) (*Release, error)
+	Delete(nameDeployment string) error
+	DeleteOldData() error
+	IsExistDeploymentNameInDB(deploymentName string) bool
+}
+
 type Release struct {
-	ID        int
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Image     string
+	ID          int
+	Name        string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	ReleaseType string
+	Image       string
 }
 
 type ReleaseStorage struct {
@@ -21,7 +33,7 @@ type ReleaseStorage struct {
 	logger *logrus.Logger
 }
 
-// NewReleaseStorage creates a new repository for working with the releases table
+// NewReleaseStorage creates a new ReleaseStorage structure to work with the database table
 func NewReleaseStorage(db *sql.DB, alg string, logger *logrus.Logger) *ReleaseStorage {
 	return &ReleaseStorage{
 		db:     db,
@@ -31,9 +43,10 @@ func NewReleaseStorage(db *sql.DB, alg string, logger *logrus.Logger) *ReleaseSt
 }
 
 // Create saves data to the database
-func (rs ReleaseStorage) Create(deploymentData *models.DeploymentData) error {
-	query := `INSERT INTO releases (name, created_at, updated_at, image) VALUES($1,$2,$3,$4);`
-	_, err := rs.db.Exec(query, deploymentData.NameDeployment, time.Now(), time.Now(), deploymentData.Image)
+func (rs ReleaseStorage) Create(deploymentData *k8s.DeploymentData) error {
+	rs.logger.Debug("saving to releases table")
+	query := `INSERT INTO releases (name, created_at, updated_at, release_type, image) VALUES($1,$2,$3,$4,$5);`
+	_, err := rs.db.Exec(query, deploymentData.NameDeployment, time.Now(), time.Now(), "", deploymentData.Image)
 	if err != nil {
 		rs.logger.Error("error while creating data to database", err)
 		return err
@@ -42,12 +55,12 @@ func (rs ReleaseStorage) Create(deploymentData *models.DeploymentData) error {
 }
 
 // Get gets data from the database
-func (rs ReleaseStorage) Get(deploymentData *models.DeploymentData) (*Release, error) {
+func (rs ReleaseStorage) Get(deploymentData *k8s.DeploymentData) (*Release, error) {
 	var hashData Release
-	query := "SELECT id, name, created_at, updated_at, image FROM releases WHERE name=$1"
+	query := "SELECT id, name, created_at, updated_at, release_type, image FROM releases WHERE name=$1"
 
 	row := rs.db.QueryRow(query, deploymentData.NameDeployment)
-	err := row.Scan(&hashData.ID, &hashData.Name, &hashData.CreatedAt, &hashData.UpdatedAt, &hashData.Image)
+	err := row.Scan(&hashData.ID, &hashData.Name, &hashData.CreatedAt, &hashData.UpdatedAt, &hashData.ReleaseType, &hashData.Image)
 	if err != nil {
 		rs.logger.Error("err while scan row in database ", err)
 		return nil, err
