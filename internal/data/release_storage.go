@@ -11,7 +11,7 @@ import (
 //go:generate mockgen -source=release_storage.go -destination=mocks/mock_release_storage.go
 
 type IReleaseStorage interface {
-	Create(deploymentData *k8s.DeploymentData) error
+	PrepareQuery(deploymentData *k8s.DeploymentData) (string, []any)
 	Get(deploymentData *k8s.DeploymentData) (*Release, error)
 	Delete(nameDeployment string) error
 	DeleteOldData() error
@@ -42,16 +42,19 @@ func NewReleaseStorage(db *sql.DB, alg string, logger *logrus.Logger) *ReleaseSt
 	}
 }
 
-// Create saves data to the database
-func (rs ReleaseStorage) Create(deploymentData *k8s.DeploymentData) error {
-	rs.logger.Debug("saving to releases table")
+// PrepareQuery creates a query and a set of arguments for preparing data for insertion into the database
+func (rs ReleaseStorage) PrepareQuery(deploymentData *k8s.DeploymentData) (string, []any) {
+	args := make([]any, 0)
+
 	query := `INSERT INTO releases (name, created_at, updated_at, release_type, image) VALUES($1,$2,$3,$4,$5);`
-	_, err := rs.db.Exec(query, deploymentData.NameDeployment, time.Now(), time.Now(), "", deploymentData.Image)
-	if err != nil {
-		rs.logger.Error("error while creating data to database", err)
-		return err
-	}
-	return nil
+	args = append(args,
+		deploymentData.NameDeployment,
+		time.Now(),
+		time.Now(),
+		"type",
+		deploymentData.Image,
+	)
+	return query, args
 }
 
 // Get gets data from the database

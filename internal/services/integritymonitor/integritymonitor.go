@@ -247,20 +247,17 @@ func saveHashes(
 			countHashes++
 		}
 
-		//ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		//defer cancel()
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
 
-		//query, args := data.NewHashFileData().PrepareBatchQuery(hashData, dd)
-		err := data.NewReleaseStorage(data.DB().SQL(), alg, logger).Create(dd)
-		//err := repositories.ExecQueryTx(ctx, query, args...)
+		queryR, argsR := data.NewReleaseStorage(data.DB().SQL(), alg, logger).PrepareQuery(dd)
+		queryH, argsH := data.NewHashStorage(data.DB().SQL(), alg, logger).PrepareQuery(hashData, dd)
+
+		err := data.ExecQueryTx(ctx, queryR, queryH, argsR, argsH...)
 		if err != nil {
 			errC <- err
 		}
-		err = data.NewHashStorage(data.DB().SQL(), alg, logger).Create(hashData, dd)
-		//err := repositories.ExecQueryTx(ctx, query, args...)
-		if err != nil {
-			errC <- err
-		}
+
 		doneC <- countHashes
 	}()
 

@@ -65,10 +65,17 @@ func WithTx(f func(txn *sql.Tx) error) error {
 	return nil
 }
 
-func ExecQueryTx(ctx context.Context, sqlQuery string, args ...any) error {
+func ExecQueryTx(ctx context.Context, sqlQueryR, sqlQueryH string, argsR []any, argsH ...any) error {
 	return WithTx(func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, sqlQuery, args...)
-		return err
+		_, err := tx.ExecContext(ctx, sqlQueryR, argsR...)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, sqlQueryH, argsH...)
+		if err != nil {
+			return err
+		}
+		return nil
 	})
 }
 
@@ -81,3 +88,47 @@ func ConnectionToDB(logger *logrus.Logger) (*sql.DB, error) {
 	}
 	return db, nil
 }
+
+//// Начало транзакции
+//tx, err := db.Begin()
+//if err != nil {
+//    return err
+//}
+//
+//// Подготовка запроса для вставки данных в таблицу releases
+//stmt, err := tx.PrepareQuery("INSERT INTO releases (name, created_at, updated_at, release_type, image) VALUES (?, ?, ?, ?, ?)")
+//if err != nil {
+//    return err
+//}
+//
+//// Выполнение запроса
+//res, err := stmt.Exec(deploymentData.NameDeployment, time.Now(), time.Now(), "", deploymentData.Image)
+//if err != nil {
+//    return err
+//}
+//
+//// Получение ID вставленной записи
+//id, err := res.LastInsertId()
+//if err != nil {
+//    return err
+//}
+//
+//// Подготовка запроса для вставки данных в таблицу filehashes
+//stmt2, err := tx.PrepareQuery("INSERT INTO filehashes (full_file_name, hash_sum, algorithm, name_pod, release_id) VALUES (?, ?, ?, ?, ?)")
+//if err != nil {
+//    return err
+//}
+//
+//// Выполнение запроса для вставки данных в таблицу filehashes
+//_, err = stmt2.Exec(allHashData.FullFileName, allHashData.Hash, allHashData.Algorithm, deploymentData.NamePod, id)
+//if err != nil {
+//    return err
+//}
+//
+//// Завершение транзакции
+//err = tx.Commit()
+//if err != nil {
+//    return err
+//}
+//
+//return nil

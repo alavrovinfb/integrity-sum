@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	data "github.com/ScienceSoft-Inc/integrity-sum/internal/data"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
+	k8s "github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -33,20 +33,6 @@ func NewMockIReleaseStorage(ctrl *gomock.Controller) *MockIReleaseStorage {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockIReleaseStorage) EXPECT() *MockIReleaseStorageMockRecorder {
 	return m.recorder
-}
-
-// Create mocks base method.
-func (m *MockIReleaseStorage) Create(deploymentData *k8s.DeploymentData) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", deploymentData)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Create indicates an expected call of Create.
-func (mr *MockIReleaseStorageMockRecorder) Create(deploymentData interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockIReleaseStorage)(nil).Create), deploymentData)
 }
 
 // Delete mocks base method.
@@ -104,4 +90,19 @@ func (m *MockIReleaseStorage) IsExistDeploymentNameInDB(deploymentName string) b
 func (mr *MockIReleaseStorageMockRecorder) IsExistDeploymentNameInDB(deploymentName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsExistDeploymentNameInDB", reflect.TypeOf((*MockIReleaseStorage)(nil).IsExistDeploymentNameInDB), deploymentName)
+}
+
+// PrepareQuery mocks base method.
+func (m *MockIReleaseStorage) PrepareQuery(deploymentData *k8s.DeploymentData) (string, []any) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PrepareQuery", deploymentData)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].([]any)
+	return ret0, ret1
+}
+
+// PrepareQuery indicates an expected call of PrepareQuery.
+func (mr *MockIReleaseStorageMockRecorder) PrepareQuery(deploymentData interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrepareQuery", reflect.TypeOf((*MockIReleaseStorage)(nil).PrepareQuery), deploymentData)
 }

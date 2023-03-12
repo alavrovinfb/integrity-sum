@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	data "github.com/ScienceSoft-Inc/integrity-sum/internal/data"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
+	k8s "github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -35,20 +35,6 @@ func (m *MockIHashStorage) EXPECT() *MockIHashStorageMockRecorder {
 	return m.recorder
 }
 
-// Create mocks base method.
-func (m *MockIHashStorage) Create(allHashData []*data.HashData, deploymentData *k8s.DeploymentData) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", allHashData, deploymentData)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Create indicates an expected call of Create.
-func (mr *MockIHashStorageMockRecorder) Create(allHashData, deploymentData interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockIHashStorage)(nil).Create), allHashData, deploymentData)
-}
-
 // Get mocks base method.
 func (m *MockIHashStorage) Get(dirPath string, deploymentData *k8s.DeploymentData) ([]*data.HashData, error) {
 	m.ctrl.T.Helper()
@@ -62,4 +48,19 @@ func (m *MockIHashStorage) Get(dirPath string, deploymentData *k8s.DeploymentDat
 func (mr *MockIHashStorageMockRecorder) Get(dirPath, deploymentData interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockIHashStorage)(nil).Get), dirPath, deploymentData)
+}
+
+// PrepareQuery mocks base method.
+func (m *MockIHashStorage) PrepareQuery(allHashData []*data.HashData, deploymentData *k8s.DeploymentData) (string, []any) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PrepareQuery", allHashData, deploymentData)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].([]any)
+	return ret0, ret1
+}
+
+// PrepareQuery indicates an expected call of PrepareQuery.
+func (mr *MockIHashStorageMockRecorder) PrepareQuery(allHashData, deploymentData interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrepareQuery", reflect.TypeOf((*MockIHashStorage)(nil).PrepareQuery), allHashData, deploymentData)
 }

@@ -2,15 +2,16 @@ package data
 
 import (
 	"database/sql"
-
+	"fmt"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 	"github.com/sirupsen/logrus"
+	"strings"
 )
 
 //go:generate mockgen -source=hash_storage.go -destination=mocks/mock_hash_storage.go
 
 type IHashStorage interface {
-	Create(allHashData []*HashData, deploymentData *k8s.DeploymentData) error
+	PrepareQuery(allHashData []*HashData, deploymentData *k8s.DeploymentData) (string, []any)
 	Get(dirPath string, deploymentData *k8s.DeploymentData) ([]*HashData, error)
 }
 
@@ -37,29 +38,37 @@ func NewHashStorage(db *sql.DB, alg string, logger *logrus.Logger) *HashStorage 
 	}
 }
 
-// Create saves data to the database
-func (hs HashStorage) Create(allHashData []*HashData, deploymentData *k8s.DeploymentData) error {
-	tx, err := hs.db.Begin()
-	if err != nil {
-		hs.logger.Error("err while saving data in database ", err)
-		return err
-	}
-	query := `INSERT INTO filehashes (full_file_name, hash_sum, algorithm, name_pod, release_id)
-	VALUES($1,$2,$3,$4,(SELECT id from releases WHERE name=$5));`
+// PrepareQuery creates a query and a set of arguments for preparing data for insertion into the database
+func (hs HashStorage) PrepareQuery(allHashData []*HashData, deploymentData *k8s.DeploymentData) (string, []any) {
+	fieldsCount := 5
+	defaultHashCount := len(allHashData)
+	valuesString := make([]string, 0, defaultHashCount)
+	args := make([]any, 0, defaultHashCount*fieldsCount)
 
-	for _, hash := range allHashData {
-		_, err = tx.Exec(query, hash.FullFileName, hash.Hash, hash.Algorithm, deploymentData.NamePod, deploymentData.NameDeployment)
-		if err != nil {
-			err = tx.Rollback()
-			if err != nil {
-				hs.logger.Error("err in Rollback", err)
-				return err
-			}
-			hs.logger.Error("err while save data in database ", err)
-			return err
-		}
+	i := 0
+	for _, v := range allHashData {
+		valuesString = append(valuesString,
+			fmt.Sprintf("($%d,$%d,$%d,$%d,(SELECT id from releases WHERE name=$%d))",
+				i*fieldsCount+1,
+				i*fieldsCount+2,
+				i*fieldsCount+3,
+				i*fieldsCount+4,
+				i*fieldsCount+5,
+			))
+		args = append(args,
+			v.FullFileName,
+			v.Hash,
+			v.Algorithm,
+			deploymentData.NamePod,
+			deploymentData.NameDeployment,
+		)
+		i++
 	}
-	return tx.Commit()
+
+	query := `INSERT INTO filehashes (full_file_name,hash_sum,algorithm,name_pod,release_id) VALUES `
+	query += strings.Join(valuesString, ",")
+
+	return query, args
 }
 
 // Get gets data from the database
