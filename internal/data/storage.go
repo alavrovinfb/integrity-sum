@@ -19,6 +19,7 @@ type Storage struct {
 var db *Storage
 var openOnce sync.Once
 
+// Open creates a connection to the database and returns a pointer to a Storage struct with an active database connection and an error if any.
 func Open(log *logrus.Logger) (*Storage, error) {
 	var err error
 	openOnce.Do(func() {
@@ -35,17 +36,22 @@ func Open(log *logrus.Logger) (*Storage, error) {
 	return db, err
 }
 
+// Close closes the connection to the database.
 func Close() {
 	db.db.Close()
 }
 
+// DB returns a pointer to a Storage struct with an active database connection
 func DB() *Storage {
 	return db
 }
+
+// SQL returns a database connection
 func (db *Storage) SQL() *sql.DB {
 	return db.db
 }
 
+// WithTx creates a transaction and executes a function with this transaction as an argument
 func WithTx(f func(txn *sql.Tx) error) error {
 	txn, err := DB().db.Begin()
 	if err != nil {
@@ -65,6 +71,7 @@ func WithTx(f func(txn *sql.Tx) error) error {
 	return nil
 }
 
+// ExecQueryTx executes two SQL queries in a transaction
 func ExecQueryTx(ctx context.Context, sqlQueryR, sqlQueryH string, argsR []any, argsH ...any) error {
 	return WithTx(func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, sqlQueryR, argsR...)
@@ -79,6 +86,7 @@ func ExecQueryTx(ctx context.Context, sqlQueryR, sqlQueryH string, argsR []any, 
 	})
 }
 
+// ConnectionToDB connects to the database
 func ConnectionToDB(logger *logrus.Logger) (*sql.DB, error) {
 	logger.Info("Connecting to the database..")
 	db, err := sql.Open("postgres", configs.GetDBConnString())
@@ -89,46 +97,9 @@ func ConnectionToDB(logger *logrus.Logger) (*sql.DB, error) {
 	return db, nil
 }
 
-//// Начало транзакции
-//tx, err := db.Begin()
-//if err != nil {
-//    return err
-//}
-//
-//// Подготовка запроса для вставки данных в таблицу releases
-//stmt, err := tx.PrepareQuery("INSERT INTO releases (name, created_at, updated_at, release_type, image) VALUES (?, ?, ?, ?, ?)")
-//if err != nil {
-//    return err
-//}
-//
-//// Выполнение запроса
-//res, err := stmt.Exec(deploymentData.NameDeployment, time.Now(), time.Now(), "", deploymentData.Image)
-//if err != nil {
-//    return err
-//}
-//
-//// Получение ID вставленной записи
-//id, err := res.LastInsertId()
-//if err != nil {
-//    return err
-//}
-//
-//// Подготовка запроса для вставки данных в таблицу filehashes
-//stmt2, err := tx.PrepareQuery("INSERT INTO filehashes (full_file_name, hash_sum, algorithm, name_pod, release_id) VALUES (?, ?, ?, ?, ?)")
-//if err != nil {
-//    return err
-//}
-//
-//// Выполнение запроса для вставки данных в таблицу filehashes
-//_, err = stmt2.Exec(allHashData.FullFileName, allHashData.Hash, allHashData.Algorithm, deploymentData.NamePod, id)
-//if err != nil {
-//    return err
-//}
-//
-//// Завершение транзакции
-//err = tx.Commit()
-//if err != nil {
-//    return err
-//}
-//
-//return nil
+// IsExists verifies where the row exists in the table @tableName with @conditions
+func IsExists(db *sql.DB, tableName string, conditions string) (exists bool) {
+	query := "SELECT TRUE FROM %s WHERE %s LIMIT 1"
+	db.QueryRow(query, tableName, conditions).Scan(&exists)
+	return
+}

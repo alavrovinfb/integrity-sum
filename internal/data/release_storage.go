@@ -12,10 +12,9 @@ import (
 
 type IReleaseStorage interface {
 	PrepareQuery(deploymentData *k8s.DeploymentData) (string, []any)
-	Get(deploymentData *k8s.DeploymentData) (*Release, error)
-	Delete(nameDeployment string) error
+	Get(deploymentData *k8s.DeploymentData) (*Release, error) // TODO: remove, not use
+	Delete(nameDeployment string) error                       // TODO: remove, not use
 	DeleteOldData() error
-	IsExistDeploymentNameInDB(deploymentName string) bool
 }
 
 type Release struct {
@@ -57,6 +56,7 @@ func (rs ReleaseStorage) PrepareQuery(deploymentData *k8s.DeploymentData) (strin
 	return query, args
 }
 
+// TODO: remove, not use
 // Get gets data from the database
 func (rs ReleaseStorage) Get(deploymentData *k8s.DeploymentData) (*Release, error) {
 	var hashData Release
@@ -71,15 +71,12 @@ func (rs ReleaseStorage) Get(deploymentData *k8s.DeploymentData) (*Release, erro
 	return &hashData, nil
 }
 
+// TODO: remove, not use
 // Delete removes the data with the release name from the database
 func (rs ReleaseStorage) Delete(nameDeployment string) error {
 	query := `DELETE FROM releases WHERE name=$1;`
 	_, err := rs.db.Exec(query, nameDeployment)
-	if err != nil {
-		rs.logger.Error("err while deleting rows in database", err)
-		return err
-	}
-	return nil
+	return err
 }
 
 // DeleteOldData removes data when the threshold is exceeded from the database
@@ -87,37 +84,13 @@ func (rs ReleaseStorage) DeleteOldData() error {
 	// query to delete old data
 	query := "DELETE FROM releases WHERE created_at < (NOW() - INTERVAL 10 MINUTE)"
 	_, err := rs.db.Exec(query)
-	if err != nil {
-		rs.logger.Error("err while deleting rows in database", err)
-		return err
-	}
-	return nil
-}
-
-// IsExistDeploymentNameInDB checks if the database is empty
-func (rs ReleaseStorage) IsExistDeploymentNameInDB(deploymentName string) bool {
-	var count int
-	query := `SELECT COUNT(*) FROM releases WHERE name=$1;`
-	err := rs.db.QueryRow(query, deploymentName).Scan(&count)
-	if err != nil {
-		rs.logger.Fatalf("err while scan row in database %s", err)
-		return false
-	}
-	if count == 0 {
-		rs.logger.Info("no rows in database")
-		return false
-	}
-	return true
+	return err
 }
 
 // Update changes column updated_at with current timestamp
-func (rs ReleaseStorage) Update(deploymentName string) error {
+func (rs ReleaseStorage) Update(releaseName string) error {
 	rs.logger.Debug("update timestamp releases")
 	query := `UPDATE  releases SET updated_at=NOW() WHERE name=$1;`
-	_, err := rs.db.Exec(query, deploymentName)
-	if err != nil {
-		rs.logger.Error("error while updating timestamp to database", err)
-		return err
-	}
-	return nil
+	_, err := rs.db.Exec(query, releaseName)
+	return err
 }

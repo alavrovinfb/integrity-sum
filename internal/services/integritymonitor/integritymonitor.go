@@ -122,15 +122,6 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 		return err
 	}
 
-	err = data.NewReleaseStorage(
-		data.DB().SQL(),
-		algName,
-		m.logger,
-	).Update(k8sData.DeploymentData.NameDeployment)
-	if err != nil {
-		return fmt.Errorf("failed update releases data: %w", err)
-	}
-
 	fileHashesDto, err := data.NewHashStorage(
 		data.DB().SQL(),
 		algName,
@@ -180,6 +171,16 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 	}
 
 	m.logger.Debug("end check integrity")
+
+	err = data.NewReleaseStorage(
+		data.DB().SQL(),
+		algName,
+		m.logger,
+	).Update(k8sData.DeploymentData.NameDeployment)
+	if err != nil {
+		return fmt.Errorf("failed update releases data in DB: %w", err)
+	}
+
 	return err
 }
 
