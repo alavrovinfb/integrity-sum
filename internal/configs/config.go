@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -22,12 +21,11 @@ const (
 )
 
 const (
-	procDir            = "/proc"
-	durationTime       = 30 * time.Second
-	algorithm          = "SHA256"
-	monitorOpts        = ""
-	clusterName        = "local"
-	monitoringOptsFlag = "monitoring-options"
+	procDir      = "/proc"
+	durationTime = 30 * time.Second
+	algorithm    = "SHA256"
+	monitorOpts  = ""
+	clusterName  = "local"
 )
 
 func init() {
@@ -45,7 +43,7 @@ func init() {
 	fsSum.Duration("duration-time", durationTime, "specific interval of time repeatedly for ticker")
 	fsSum.Int("count-workers", runtime.NumCPU(), "number of running workers in the workerpool")
 	fsSum.String("algorithm", algorithm, "hashing algorithm for hashing data")
-	fsSum.String(monitoringOptsFlag, monitorOpts, "process name and process paths to monitoring, should be represented as key=value pair. e.g. nginx=/dir1,/dir2")
+	fsSum.String("monitoring-options", monitorOpts, "process name and process paths to monitoring, should be represented as key=value pair. e.g. nginx=/dir1,/dir2")
 	fsSum.String("cluster-name", clusterName, "Name of cluster where monitor deployed, default local")
 	pflag.CommandLine.AddFlagSet(fsSum)
 	if err := viper.BindPFlags(fsSum); err != nil {
@@ -108,29 +106,4 @@ func GetDBConnString() string {
 		viper.GetString("db-name"),
 		viper.GetInt("db-connection-timeout"),
 	)
-}
-
-func ParseMonitoringOpts(opts string) (map[string][]string, error) {
-	processes := strings.Split(opts, " ")
-	if len(processes) < 1 {
-		return nil, fmt.Errorf("--%s %s", monitoringOptsFlag, "is empty")
-	}
-	optsMap := make(map[string][]string)
-	for _, p := range processes {
-		procPaths := strings.Split(p, "=")
-		if len(procPaths) < 2 {
-			return nil, fmt.Errorf("%s", "application and monitoring paths should be represented as key=value pair")
-		}
-
-		if procPaths[1] == "" {
-			return nil, fmt.Errorf("%s", "monitoring path is required")
-		}
-		paths := strings.Split(strings.Trim(procPaths[1], ","), ",")
-		for i, v := range paths {
-			paths[i] = strings.TrimSpace(v)
-		}
-		optsMap[procPaths[0]] = paths
-	}
-
-	return optsMap, nil
 }

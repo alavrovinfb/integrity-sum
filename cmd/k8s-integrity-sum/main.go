@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
@@ -42,12 +43,21 @@ func main() {
 
 	// DB connect
 	if _, err := repositories.Open(log); err != nil {
-		log.Fatalf("failed connect to database: %w", err)
+		log.Fatalf("failed connect to database: %v", err)
 	}
 
-	monitor, err := initMonitor(log)
+	optsMap, err := integritymonitor.ParseMonitoringOpts(viper.GetString("monitoring-options"))
 	if err != nil {
-		log.WithError(err).Fatal("failed to initialize integrity monitor")
+		log.WithError(err).Fatal("cannot parse monitoring options")
+	}
+	monitors := make([]*integritymonitor.IntegrityMonitor, len(optsMap))
+	i := 0
+	for proc, paths := range optsMap {
+		monitors[i], err = initMonitor(log, proc, paths)
+		if err != nil {
+			log.WithError(err).Fatal("failed to initialize integrity monitor")
+		}
+		i++
 	}
 
 	// Run Application with graceful shutdown context
@@ -58,19 +68,27 @@ func main() {
 		}
 
 		// TODO: make it independent
-		err := monitor.Run(ctx, viper.GetDuration("duration-time"), viper.GetString("algorithm"))
-		if err == context.Canceled {
-			log.Info("execution cancelled")
-			return
+		g := errgroup.Group{}
+		for _, monitor := range monitors {
+			monitor := monitor
+			g.Go(func() error {
+				err := monitor.Run(ctx, viper.GetDuration("duration-time"), viper.GetString("algorithm"))
+				if err == context.Canceled {
+					log.Info("execution cancelled")
+					return err
+				}
+				if err != nil {
+					log.WithError(err).Error("monitor execution aborted")
+					return err
+				}
+				return nil
+			})
 		}
-		if err != nil {
-			log.WithError(err).Error("monitor execution aborted")
-			return
-		}
+		g.Wait()
 	})
 }
 
-func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error) {
+func initMonitor(log *logrus.Logger, procName string, procPaths []string) (*integritymonitor.IntegrityMonitor, error) {
 	// TODO: separated: storage, data models; remove repository, remove repository dependency from the monitor.
 	repository := repositories.NewAppRepository(log, repositories.DB().SQL())
 
@@ -88,20 +106,40 @@ func initMonitor(log *logrus.Logger) (*integritymonitor.IntegrityMonitor, error)
 	countWorkers := viper.GetInt("count-workers")
 	fileHasher := filehash.NewFileSystemHasher(log, algorithm, countWorkers) // TODO: remove
 
-	monitorProc := viper.GetString("process")
-	monitorPath := viper.GetString("monitoring-path")
+	monitorProc := procName
+	monitorPath := procPaths
 	return integritymonitor.New(log, fileHasher, repository, alertsSender, monitorProc, monitorPath)
 }
 
 func setupIntegrity(ctx context.Context, log *logrus.Logger) error {
-	processPath, err := integritymonitor.GetProcessPath(
-		viper.GetString("process"),
-		viper.GetString("monitoring-path"),
-	)
+	optsMap, err := integritymonitor.ParseMonitoringOpts(viper.GetString("monitoring-options"))
 	if err != nil {
 		return err
 	}
-	return integritymonitor.SetupIntegrity(ctx, processPath, log)
+
+	g := errgroup.Group{}
+	for pName, pPaths := range optsMap {
+		pName := pName
+		pPaths := pPaths
+		g.Go(func() error {
+			for _, p := range pPaths {
+				processPath, err := integritymonitor.GetProcessPath(pName, p)
+				if err != nil {
+					return err
+				}
+				if err := integritymonitor.SetupIntegrity(ctx, processPath, log); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func initConfig() {

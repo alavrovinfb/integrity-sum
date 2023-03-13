@@ -1,4 +1,4 @@
-package configs
+package integritymonitor
 
 import (
 	"reflect"
@@ -18,6 +18,15 @@ func Test_parseOpts(t *testing.T) {
 		{
 			name: "Parse monitoring options positive",
 			args: args{opts: "nginx=/proc,/dir1,/dir2 redis=/proc,/dir3,/dir4"},
+			want: map[string][]string{
+				"nginx": {"/proc", "/dir1", "/dir2"},
+				"redis": {"/proc", "/dir3", "/dir4"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Parse monitoring quoted",
+			args: args{opts: "\"nginx=/proc,/dir1,/dir2 redis=/proc,/dir3,/dir4\""},
 			want: map[string][]string{
 				"nginx": {"/proc", "/dir1", "/dir2"},
 				"redis": {"/proc", "/dir3", "/dir4"},
