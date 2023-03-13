@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"sync"
+	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
 )
@@ -102,4 +104,19 @@ func IsExists(db *sql.DB, tableName string, conditions string) (exists bool) {
 	query := "SELECT TRUE FROM %s WHERE %s LIMIT 1"
 	db.QueryRow(query, tableName, conditions).Scan(&exists)
 	return
+}
+
+// CheckOldData removes data when the threshold is exceeded from the database
+func CheckOldData(algName string, logger *logrus.Logger) {
+	ticker := time.NewTicker(viper.GetDuration("db-ticker-interval"))
+	go func() {
+		for {
+			<-ticker.C
+			logger.Debug("### ✅ checking old data in db")
+			err := NewReleaseStorage(DB().SQL(), algName, logger).DeleteOldData(viper.GetString("db-threshold-timeout"))
+			if err != nil {
+				logger.WithError(err).Error("failed check old data in DB")
+			}
+		}
+	}()
 }

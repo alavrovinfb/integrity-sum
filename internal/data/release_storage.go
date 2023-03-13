@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
@@ -14,7 +15,7 @@ type IReleaseStorage interface {
 	PrepareQuery(deploymentData *k8s.DeploymentData) (string, []any)
 	Get(deploymentData *k8s.DeploymentData) (*Release, error) // TODO: remove, not use
 	Delete(nameDeployment string) error                       // TODO: remove, not use
-	DeleteOldData() error
+	DeleteOldData(threshold string) error
 }
 
 type Release struct {
@@ -80,10 +81,9 @@ func (rs ReleaseStorage) Delete(nameDeployment string) error {
 }
 
 // DeleteOldData removes data when the threshold is exceeded from the database
-func (rs ReleaseStorage) DeleteOldData() error {
-	// query to delete old data
-	query := "DELETE FROM releases WHERE created_at < (NOW() - INTERVAL 10 MINUTE)"
-	_, err := rs.db.Exec(query)
+func (rs ReleaseStorage) DeleteOldData(threshold string) error {
+	query := fmt.Sprintf("DELETE FROM releases WHERE updated_at < NOW() - INTERVAL '%s'", threshold)
+	_, err := DB().SQL().Exec(query)
 	return err
 }
 

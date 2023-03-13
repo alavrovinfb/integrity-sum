@@ -4,18 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/process"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/walker"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/worker"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 )
 
 var ErrIntegrityNewFileFoud = errors.New("new file found")
@@ -49,6 +49,8 @@ func New(logger *logrus.Logger,
 }
 
 func (m *IntegrityMonitor) Run(ctx context.Context, interval time.Duration, algName string) error {
+	data.CheckOldData(algName, m.logger)
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {

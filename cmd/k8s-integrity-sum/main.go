@@ -4,13 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"

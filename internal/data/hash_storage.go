@@ -3,9 +3,11 @@ package data
 import (
 	"database/sql"
 	"fmt"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
-	"github.com/sirupsen/logrus"
 	"strings"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 )
 
 //go:generate mockgen -source=hash_storage.go -destination=mocks/mock_hash_storage.go
