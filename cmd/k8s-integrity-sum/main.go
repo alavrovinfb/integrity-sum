@@ -113,6 +113,7 @@ func runCheckIntegrity(ctx context.Context, log *logrus.Logger, alertSender aler
 	for range t.C {
 		err := integritymonitor.CheckIntegrity(ctx, log, processPath, alertSender, deploymentData, kubeClient)
 		if err != nil {
+			log.WithError(err).Info("failed check integrity")
 			return err
 		}
 	}

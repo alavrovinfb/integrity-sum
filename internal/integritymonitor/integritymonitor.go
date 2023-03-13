@@ -91,18 +91,16 @@ func CheckIntegrity(ctx context.Context, log *logrus.Logger, monitoringDirectory
 	)
 
 	log.Trace("calculate & save hashes...")
-	for {
-		select {
-		case <-ctx.Done():
-			log.Error(ctx.Err())
-			return ctx.Err()
-		case countHashes := <-comparedHashesChan:
-			log.WithField("countHashes", countHashes).Info("hashes compared successfully")
-			log.Debug("end check integrity")
-			return nil
-		case err := <-errC:
-			integrityCheckFailed(log, err, alertSender, kubeClient)
-		}
+	select {
+	case <-ctx.Done():
+		log.Error(ctx.Err())
+		return ctx.Err()
+	case countHashes := <-comparedHashesChan:
+		log.WithField("countHashes", countHashes).Info("hashes compared successfully")
+		return nil
+	case err := <-errC:
+		integrityCheckFailed(log, err, alertSender, kubeClient)
+		return err
 	}
 }
 
@@ -210,25 +208,17 @@ func integrityCheckFailed(
 	alertSender alerts.Sender,
 	kubeClient *services.KubeClient,
 ) {
-
-	var msg string
 	var path string
 	var integrityError *IntegrityError
 	if errors.As(err, &integrityError) {
 		path = integrityError.Path
-		switch integrityError.Type {
-		case ErrTypeFileMismatch:
-			msg = IntegrityMessageFileMismatch
-		case ErrTypeNewFile:
-			msg = IntegrityMessageNewFileFound
-		case ErrTypeFileDeleted:
-			msg = IntegrityMessageFileDeleted
-		}
-		log.WithError(err).WithField("path", integrityError.Path).Error("check integrity failed")
-	} else {
-		msg = err.Error()
-		log.WithError(err).Error("check integrity failed")
 	}
+
+	l := log.WithError(err)
+	if len(path) > 0 {
+		l = l.WithField("path", path)
+	}
+	l.Error("check integrity failed")
 
 	kubeData, err := kubeClient.GetKubeData()
 	if err != nil {
@@ -246,7 +236,7 @@ func integrityCheckFailed(
 		err := alertSender.Send(alerts.Alert{
 			Time:    time.Now(),
 			Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
-			Reason:  msg,
+			Reason:  err.Error(),
 			Path:    path,
 		})
 		if err != nil {

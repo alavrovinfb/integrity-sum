@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 
@@ -44,7 +45,21 @@ func main() {
 	logger := logger.Init(viper.GetString("verbose"))
 
 	graceful.Execute(context.Background(), logger, func(ctx context.Context) {
-		run(ctx, logger)
+		switch {
+		case viper.GetBool("doHelp"):
+			flag.Usage = func() {
+				fmt.Fprintf(os.Stderr, "Custom help %s:\nYou can use the following flag:\n", os.Args[0])
+
+				flag.VisitAll(func(f *flag.Flag) {
+					fmt.Fprintf(os.Stderr, "  flag -%v \n       %v\n", f.Name, f.Usage)
+				})
+			}
+			flag.Usage()
+		case len(viper.GetString("dirPath")) > 0:
+			run(ctx, logger)
+		default:
+			log.Println("use the -h flag on the command line to see all the flags in this app")
+		}
 	})
 }
 
@@ -54,31 +69,16 @@ func run(ctx context.Context, log *logrus.Logger) {
 		walker.ChanWalkDir(ctx, viper.GetString("dirPath"), log),
 		worker.NewWorker(ctx, viper.GetString("algorithm"), log),
 	)
-	switch {
-	case viper.GetBool("doHelp"):
-		flag.Usage = func() {
-			fmt.Fprintf(os.Stderr, "Custom help %s:\nYou can use the following flag:\n", os.Args[0])
-
-			flag.VisitAll(func(f *flag.Flag) {
-				fmt.Fprintf(os.Stderr, "  flag -%v \n       %v\n", f.Name, f.Usage)
-			})
-		}
-		flag.Usage()
-	case len(viper.GetString("dirPath")) > 0:
-		for {
-			select {
-			case hashData, ok := <-hashesChan:
-				if ok {
-					fmt.Printf("%s %s\n", hashData.Hash, hashData.Path)
-				} else {
-					return
-				}
-			case <-ctx.Done():
-				fmt.Println("program termination after receiving a signal")
+	for {
+		select {
+		case hashData, ok := <-hashesChan:
+			if !ok {
 				return
 			}
+			fmt.Printf("%s %s\n", hashData.Hash, hashData.Path)
+		case <-ctx.Done():
+			fmt.Println("program termination after receiving a signal")
+			return
 		}
-	default:
-		log.Println("use the -h flag on the command line to see all the flags in this app")
 	}
 }
