@@ -68,7 +68,13 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	}
 }
 
-func CheckIntegrity(ctx context.Context, log *logrus.Logger, monitoringDirectory string, alertSender alerts.Sender, deploymentData *models.DeploymentData, kubeClient *services.KubeClient) error {
+func CheckIntegrity(ctx context.Context,
+	log *logrus.Logger,
+	monitoringDirectory string,
+	alertSender alerts.Sender,
+	kubeData *models.KubeData,
+	deploymentData *models.DeploymentData,
+	kubeClient *services.KubeClient) error {
 	log.Debug("begin check integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -99,7 +105,7 @@ func CheckIntegrity(ctx context.Context, log *logrus.Logger, monitoringDirectory
 		log.WithField("countHashes", countHashes).Info("hashes compared successfully")
 		return nil
 	case err := <-errC:
-		integrityCheckFailed(log, err, alertSender, kubeClient)
+		integrityCheckFailed(log, err, alertSender, kubeData, deploymentData, kubeClient)
 		return err
 	}
 }
@@ -159,6 +165,7 @@ func compareHashes(
 		defer close(doneC)
 
 		repository := repositories.NewAppRepository(log, repositories.DB().SQL())
+
 		expectedHashes, err := repository.GetHashData(
 			directory,
 			algName,
@@ -206,6 +213,8 @@ func integrityCheckFailed(
 	log *logrus.Logger,
 	err error,
 	alertSender alerts.Sender,
+	kubeData *models.KubeData,
+	deploymentData *models.DeploymentData,
 	kubeClient *services.KubeClient,
 ) {
 	var path string
@@ -219,18 +228,6 @@ func integrityCheckFailed(
 		l = l.WithField("path", path)
 	}
 	l.Error("check integrity failed")
-
-	kubeData, err := kubeClient.GetKubeData()
-	if err != nil {
-		log.WithError(err).Error("failed get kubernetes data")
-		return
-	}
-
-	deploymentData, err := kubeClient.GetDataFromDeployment(kubeData)
-	if err != nil {
-		log.WithError(err).Error("failed get kubernetes deployment data")
-		return
-	}
 
 	if alertSender != nil {
 		err := alertSender.Send(alerts.Alert{

@@ -76,7 +76,7 @@ func main() {
 			return
 		}
 
-		err := runCheckIntegrity(ctx, log, alertsSender, deploymentData, kubeClient)
+		err := runCheckIntegrity(ctx, log, alertsSender, kubeData, deploymentData, kubeClient)
 		if err == context.Canceled {
 			log.Info("execution cancelled")
 			return
@@ -99,7 +99,12 @@ func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *mod
 	return integritymonitor.SetupIntegrity(ctx, processPath, log, deploymentData)
 }
 
-func runCheckIntegrity(ctx context.Context, log *logrus.Logger, alertSender alerts.Sender, deploymentData *models.DeploymentData, kubeClient *services.KubeClient) error {
+func runCheckIntegrity(ctx context.Context,
+	log *logrus.Logger,
+	alertSender alerts.Sender,
+	kubeData *models.KubeData,
+	deploymentData *models.DeploymentData,
+	kubeClient *services.KubeClient) error {
 
 	processPath, err := integritymonitor.GetProcessPath(
 		viper.GetString("process"),
@@ -111,7 +116,7 @@ func runCheckIntegrity(ctx context.Context, log *logrus.Logger, alertSender aler
 
 	t := time.NewTicker(viper.GetDuration("duration-time"))
 	for range t.C {
-		err := integritymonitor.CheckIntegrity(ctx, log, processPath, alertSender, deploymentData, kubeClient)
+		err := integritymonitor.CheckIntegrity(ctx, log, processPath, alertSender, kubeData, deploymentData, kubeClient)
 		if err != nil {
 			log.WithError(err).Info("failed check integrity")
 			return err
