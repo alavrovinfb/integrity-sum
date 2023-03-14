@@ -99,13 +99,6 @@ func ConnectionToDB(logger *logrus.Logger) (*sql.DB, error) {
 	return db, nil
 }
 
-// IsExists verifies where the row exists in the table @tableName with @conditions
-func IsExists(db *sql.DB, tableName string, conditions string) (exists bool) {
-	query := "SELECT TRUE FROM %s WHERE %s LIMIT 1"
-	db.QueryRow(query, tableName, conditions).Scan(&exists)
-	return
-}
-
 // CheckOldData removes data when the threshold is exceeded from the database
 func CheckOldData(algName string, logger *logrus.Logger) {
 	ticker := time.NewTicker(viper.GetDuration("db-ticker-interval"))
