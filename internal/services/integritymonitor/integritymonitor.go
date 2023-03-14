@@ -130,7 +130,7 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 		m.logger,
 	).Get(
 		m.monitoringDirectory,
-		k8sData.DeploymentData,
+		k8sData.DeploymentData.NamePod,
 	)
 	if err != nil {
 		return fmt.Errorf("failed get hash data: %w", err)

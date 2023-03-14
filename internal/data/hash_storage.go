@@ -10,13 +10,6 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 )
 
-//go:generate mockgen -source=hash_storage.go -destination=mocks/mock_hash_storage.go
-
-type IHashStorage interface {
-	PrepareQuery(allHashData []*HashData, deploymentData *k8s.DeploymentData) (string, []any)
-	Get(dirPath string, deploymentData *k8s.DeploymentData) ([]*HashData, error)
-}
-
 type HashData struct {
 	ID           int
 	Hash         string
@@ -74,12 +67,12 @@ func (hs HashStorage) PrepareQuery(allHashData []*HashData, deploymentData *k8s.
 }
 
 // Get gets data from the database
-func (hs HashStorage) Get(dirFiles string, deploymentData *k8s.DeploymentData) ([]*HashData, error) {
-	var allHashDataFromDB []*HashData
+func (hs HashStorage) Get(dirName string, podName string) ([]*HashData, error) {
+	var dataHashes []*HashData
 
 	query := `SELECT id,full_file_name, hash_sum, algorithm, name_pod
 		FROM filehashes WHERE full_file_name LIKE $1 and algorithm=$2 and name_pod=$3`
-	rows, err := hs.db.Query(query, "%"+dirFiles+"%", hs.alg, deploymentData.NamePod)
+	rows, err := hs.db.Query(query, "%"+dirName+"%", hs.alg, podName)
 	if err != nil {
 		hs.logger.Error(err)
 		return nil, err
@@ -88,15 +81,15 @@ func (hs HashStorage) Get(dirFiles string, deploymentData *k8s.DeploymentData) (
 	defer rows.Close()
 
 	for rows.Next() {
-		var hashDataFromDB HashData
-		err = rows.Scan(&hashDataFromDB.ID, &hashDataFromDB.FullFileName,
-			&hashDataFromDB.Hash, &hashDataFromDB.Algorithm, &hashDataFromDB.NamePod)
+		var dataHash HashData
+		err = rows.Scan(&dataHash.ID, &dataHash.FullFileName,
+			&dataHash.Hash, &dataHash.Algorithm, &dataHash.NamePod)
 		if err != nil {
 			hs.logger.Error(err)
 			return nil, err
 		}
-		allHashDataFromDB = append(allHashDataFromDB, &hashDataFromDB)
+		dataHashes = append(dataHashes, &dataHash)
 	}
 
-	return allHashDataFromDB, nil
+	return dataHashes, nil
 }
