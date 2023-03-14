@@ -62,7 +62,7 @@ func main() {
 
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), log, func(ctx context.Context) {
-		if err = setupIntegrity(ctx, log); err != nil {
+		if err = setupIntegrity(ctx, log, optsMap); err != nil {
 			log.WithError(err).Fatal("failed to setup integrity")
 			return
 		}
@@ -106,17 +106,10 @@ func initMonitor(log *logrus.Logger, procName string, procPaths []string) (*inte
 	countWorkers := viper.GetInt("count-workers")
 	fileHasher := filehash.NewFileSystemHasher(log, algorithm, countWorkers) // TODO: remove
 
-	monitorProc := procName
-	monitorPath := procPaths
-	return integritymonitor.New(log, fileHasher, repository, alertsSender, monitorProc, monitorPath)
+	return integritymonitor.New(log, fileHasher, repository, alertsSender, procName, procPaths)
 }
 
-func setupIntegrity(ctx context.Context, log *logrus.Logger) error {
-	optsMap, err := integritymonitor.ParseMonitoringOpts(viper.GetString("monitoring-options"))
-	if err != nil {
-		return err
-	}
-
+func setupIntegrity(ctx context.Context, log *logrus.Logger, optsMap map[string][]string) error {
 	g := errgroup.Group{}
 	for pName, pPaths := range optsMap {
 		pName := pName
