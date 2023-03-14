@@ -73,6 +73,7 @@ func run(ctx context.Context, log *logrus.Logger) {
 		select {
 		case hashData, ok := <-hashesChan:
 			if !ok {
+				log.Debug("completed")
 				return
 			}
 			fmt.Printf("%s %s\n", hashData.Hash, hashData.Path)

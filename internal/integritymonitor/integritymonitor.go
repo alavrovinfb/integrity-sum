@@ -217,16 +217,14 @@ func integrityCheckFailed(
 	deploymentData *models.DeploymentData,
 	kubeClient *services.KubeClient,
 ) {
+	l := log.WithError(err)
 	var path string
 	var integrityError *IntegrityError
 	if errors.As(err, &integrityError) {
 		path = integrityError.Path
+		l = l.WithField("path", integrityError.Path)
 	}
 
-	l := log.WithError(err)
-	if len(path) > 0 {
-		l = l.WithField("path", path)
-	}
 	l.Error("check integrity failed")
 
 	if alertSender != nil {
