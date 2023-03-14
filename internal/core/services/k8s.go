@@ -147,20 +147,19 @@ func (ks *KubeClient) RolloutDeployment(kubeData *models.KubeData) error {
 	switch kubeData.TargetType {
 	case "deployment":
 		// Restarting the deployments
-		ks.logger.Printf("### 🔄 Restarting the deployment %v", kubeData.TargetName)
 		_, err = kubeData.Clientset.AppsV1().Deployments(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
 	case "daemonset":
 		// Restarting the daemonsets
-		ks.logger.Printf("### 🔄 Restarting the daemonset %v", kubeData.TargetName)
 		_, err = kubeData.Clientset.AppsV1().DaemonSets(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
 	case "statefulset":
 		// Restarting the statefulsets
-		ks.logger.Printf("### 🔄 Restarting the statefulset %v", kubeData.TargetName)
 		_, err = kubeData.Clientset.AppsV1().StatefulSets(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
 	default:
 		ks.logger.Printf("### 🚫 Target %v, named %v is not supported!", kubeData.TargetType, kubeData.TargetName)
 		return errors.New("target is not supported")
 	}
+
+	ks.logger.Printf("### 🔄 Restarting the %v %v", kubeData.TargetType, kubeData.TargetName)
 
 	if err != nil {
 		ks.logger.Printf("### 👎 Warning: Failed to patch %v, restart failed: %v", kubeData.TargetType, err)
