@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 	"github.com/sirupsen/logrus"
 )
 
@@ -34,16 +33,16 @@ func NewReleaseStorage(db *sql.DB, alg string, logger *logrus.Logger) *ReleaseSt
 }
 
 // PrepareQuery creates a query and a set of arguments for preparing data for insertion into the database
-func (rs ReleaseStorage) PrepareQuery(deploymentData *k8s.DeploymentData) (string, []any) {
+func (rs ReleaseStorage) PrepareQuery(releaseName, imageName string, resourceType string) (string, []any) {
 	args := make([]any, 0)
 
 	query := `INSERT INTO releases (name, created_at, updated_at, release_type, image) VALUES($1,$2,$3,$4,$5);`
 	args = append(args,
-		deploymentData.NameDeployment,
+		releaseName,
 		time.Now(),
 		time.Now(),
-		"type",
-		deploymentData.Image,
+		resourceType,
+		imageName,
 	)
 	return query, args
 }

@@ -6,16 +6,23 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 )
 
 type HashData struct {
+	Hash         string
+	FullFileName string
+	Algorithm    string
+	PodName      string
+	ReleaseId    int
+}
+
+type HashDataOutput struct {
 	ID           int
 	Hash         string
 	FullFileName string
 	Algorithm    string
 	NamePod      string
+	ReleaseId    int
 }
 
 type HashStorage struct {
@@ -34,14 +41,14 @@ func NewHashStorage(db *sql.DB, alg string, logger *logrus.Logger) *HashStorage 
 }
 
 // PrepareQuery creates a query and a set of arguments for preparing data for insertion into the database
-func (hs HashStorage) PrepareQuery(allHashData []*HashData, deploymentData *k8s.DeploymentData) (string, []any) {
+func (hs HashStorage) PrepareQuery(hashData []*HashData, releaseName string) (string, []any) {
 	fieldsCount := 5
-	defaultHashCount := len(allHashData)
+	defaultHashCount := len(hashData)
 	valuesString := make([]string, 0, defaultHashCount)
 	args := make([]any, 0, defaultHashCount*fieldsCount)
 
 	i := 0
-	for _, v := range allHashData {
+	for _, v := range hashData {
 		valuesString = append(valuesString,
 			fmt.Sprintf("($%d,$%d,$%d,$%d,(SELECT id from releases WHERE name=$%d))",
 				i*fieldsCount+1,
@@ -54,8 +61,8 @@ func (hs HashStorage) PrepareQuery(allHashData []*HashData, deploymentData *k8s.
 			v.FullFileName,
 			v.Hash,
 			v.Algorithm,
-			deploymentData.NamePod,
-			deploymentData.NameDeployment,
+			v.PodName,
+			releaseName,
 		)
 		i++
 	}
@@ -67,10 +74,10 @@ func (hs HashStorage) PrepareQuery(allHashData []*HashData, deploymentData *k8s.
 }
 
 // Get gets data from the database
-func (hs HashStorage) Get(dirName string, podName string) ([]*HashData, error) {
-	var dataHashes []*HashData
+func (hs HashStorage) Get(dirName string, podName string) ([]*HashDataOutput, error) {
+	var dataHashes []*HashDataOutput
 
-	query := `SELECT id,full_file_name, hash_sum, algorithm, name_pod
+	query := `SELECT id,full_file_name, hash_sum, algorithm, name_pod, release_id
 		FROM filehashes WHERE full_file_name LIKE $1 and algorithm=$2 and name_pod=$3`
 	rows, err := hs.db.Query(query, "%"+dirName+"%", hs.alg, podName)
 	if err != nil {
@@ -81,9 +88,9 @@ func (hs HashStorage) Get(dirName string, podName string) ([]*HashData, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var dataHash HashData
+		var dataHash HashDataOutput
 		err = rows.Scan(&dataHash.ID, &dataHash.FullFileName,
-			&dataHash.Hash, &dataHash.Algorithm, &dataHash.NamePod)
+			&dataHash.Hash, &dataHash.Algorithm, &dataHash.NamePod, &dataHash.ReleaseId)
 		if err != nil {
 			hs.logger.Error(err)
 			return nil, err

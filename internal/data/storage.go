@@ -73,8 +73,8 @@ func WithTx(f func(txn *sql.Tx) error) error {
 	return nil
 }
 
-// ExecQueryTx executes two SQL queries in a transaction
-func ExecQueryTx(ctx context.Context, sqlQueryR, sqlQueryH string, argsR []any, argsH ...any) error {
+// ExecTransactions executes two SQL queries in a transaction
+func ExecTransactions(ctx context.Context, sqlQueryR, sqlQueryH string, argsR []any, argsH ...any) error {
 	return WithTx(func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, sqlQueryR, argsR...)
 		if err != nil {

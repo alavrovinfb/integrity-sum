@@ -96,6 +96,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 				worker.NewWorker(ctx, viper.GetString("algorithm"), log),
 			),
 			dataK8s.DeploymentData,
+			dataK8s.KubeData.TargetType,
 			errC,
 			log,
 		):
@@ -136,7 +137,7 @@ func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) e
 		return fmt.Errorf("failed get hash data: %w", err)
 	}
 
-	referenceHashes := make(map[string]*data.HashData, len(fileHashesDto))
+	referenceHashes := make(map[string]*data.HashDataOutput, len(fileHashesDto))
 
 	for _, fh := range fileHashesDto {
 		referenceHashes[fh.FullFileName] = fh
@@ -226,6 +227,7 @@ func saveHashes(
 	ctx context.Context,
 	hashC <-chan filehash.FileHash,
 	dd *k8s.DeploymentData,
+	resourceType string,
 	errC chan<- error,
 	logger *logrus.Logger,
 ) <-chan int {
@@ -246,17 +248,17 @@ func saveHashes(
 			default:
 			}
 
-			hashData = append(hashData, FileHashDtoDB(alg, &v))
+			hashData = append(hashData, FileHashDtoDB(alg, &v, dd.NamePod))
 			countHashes++
 		}
 
 		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 		defer cancel()
 
-		queryR, argsR := data.NewReleaseStorage(data.DB().SQL(), alg, logger).PrepareQuery(dd)
-		queryH, argsH := data.NewHashStorage(data.DB().SQL(), alg, logger).PrepareQuery(hashData, dd)
+		queryR, argsR := data.NewReleaseStorage(data.DB().SQL(), alg, logger).PrepareQuery(dd.NameDeployment, dd.Image, resourceType)
+		queryH, argsH := data.NewHashStorage(data.DB().SQL(), alg, logger).PrepareQuery(hashData, dd.NameDeployment)
 
-		err := data.ExecQueryTx(ctx, queryR, queryH, argsR, argsH...)
+		err := data.ExecTransactions(ctx, queryR, queryH, argsR, argsH...)
 		if err != nil {
 			errC <- err
 		}
@@ -267,10 +269,11 @@ func saveHashes(
 	return doneC
 }
 
-func FileHashDtoDB(algName string, fh *filehash.FileHash) *data.HashData {
+func FileHashDtoDB(algName string, fh *filehash.FileHash, podName string) *data.HashData {
 	return &data.HashData{
 		Hash:         fh.Hash,
 		FullFileName: fh.Path,
 		Algorithm:    algName,
+		PodName:      podName,
 	}
 }
