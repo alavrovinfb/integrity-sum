@@ -51,9 +51,9 @@ func main() {
 	splunkUrl := viper.GetString("splunk-url")
 	splunkToken := viper.GetString("splunk-token")
 	splunkInsecureSkipVerify := viper.GetBool("splunk-insecure-skip-verify")
-	var alertsSender alerts.Sender
 	if len(splunkUrl) > 0 && len(splunkToken) > 0 {
-		alertsSender = splunk.New(log, splunkUrl, splunkToken, splunkInsecureSkipVerify)
+		alertsSender := splunk.New(log, splunkUrl, splunkToken, splunkInsecureSkipVerify)
+		alerts.Register(alertsSender)
 	}
 
 	kubeClient := services.NewKubeService(log)
@@ -82,7 +82,7 @@ func main() {
 			return
 		}
 
-		err := runCheckIntegrity(ctx, log, optsMap, alertsSender, kubeData, deploymentData, kubeClient)
+		err := runCheckIntegrity(ctx, log, optsMap, kubeData, deploymentData, kubeClient)
 		if err == context.Canceled {
 			log.Info("execution cancelled")
 			return
@@ -122,7 +122,6 @@ func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *mod
 func runCheckIntegrity(ctx context.Context,
 	log *logrus.Logger,
 	optsMap map[string][]string,
-	alertSender alerts.Sender,
 	kubeData *models.KubeData,
 	deploymentData *models.DeploymentData,
 	kubeClient *services.KubeClient) error {
@@ -136,7 +135,7 @@ func runCheckIntegrity(ctx context.Context,
 					log.WithError(err).Error("failed build process path")
 					return err
 				}
-				err = integritymonitor.CheckIntegrity(ctx, log, processPath, alertSender, kubeData, deploymentData, kubeClient)
+				err = integritymonitor.CheckIntegrity(ctx, log, processPath, kubeData, deploymentData, kubeClient)
 				if err != nil {
 					log.WithError(err).Error("failed check integrity")
 					return err

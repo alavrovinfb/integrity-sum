@@ -73,7 +73,6 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 func CheckIntegrity(ctx context.Context,
 	log *logrus.Logger,
 	monitoringDirectory string,
-	alertSender alerts.Sender,
 	kubeData *models.KubeData,
 	deploymentData *models.DeploymentData,
 	kubeClient *services.KubeClient) error {
@@ -107,7 +106,7 @@ func CheckIntegrity(ctx context.Context,
 		log.WithField("countHashes", countHashes).Info("hashes compared successfully")
 		return nil
 	case err := <-errC:
-		integrityCheckFailed(log, err, alertSender, kubeData, deploymentData, kubeClient)
+		integrityCheckFailed(log, err, kubeData, deploymentData, kubeClient)
 		return err
 	}
 }
@@ -214,7 +213,6 @@ func compareHashes(
 func integrityCheckFailed(
 	log *logrus.Logger,
 	err error,
-	alertSender alerts.Sender,
 	kubeData *models.KubeData,
 	deploymentData *models.DeploymentData,
 	kubeClient *services.KubeClient,
@@ -229,17 +227,16 @@ func integrityCheckFailed(
 
 	l.Error("check integrity failed")
 
-	if alertSender != nil {
-		err := alertSender.Send(alerts.Alert{
-			Time:    time.Now(),
-			Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
-			Reason:  err.Error(),
-			Path:    path,
-		})
-		if err != nil {
-			log.WithError(err).Error("Failed send alert")
-		}
+	e := alerts.Send(alerts.Alert{
+		Time:    time.Now(),
+		Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
+		Reason:  err.Error(),
+		Path:    path,
+	})
+	if e != nil {
+		log.WithError(e).Error("Failed send alert")
 	}
+
 	kubeClient.RolloutDeployment(kubeData)
 }
 
