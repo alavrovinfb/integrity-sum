@@ -3,7 +3,6 @@ package worker
 import (
 	"testing"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,10 +35,10 @@ func TestWorkersPool(t *testing.T) {
 	assert.Equal(t, len(testData), cnt)
 }
 
-func mockWorker(ind int, fileNameC <-chan string, hashC chan<- filehash.FileHash) {
+func mockWorker(ind int, fileNameC <-chan string, hashC chan<- FileHash) {
 	logrus.WithField("ind", ind).Info("worker started")
 	for v := range fileNameC {
-		hashC <- filehash.FileHash{
+		hashC <- FileHash{
 			Path: v,
 			Hash: v,
 		}

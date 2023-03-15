@@ -81,11 +81,6 @@ func (ks *KubeClient) GetDataFromK8sAPI() (*models.DataFromK8sAPI, error) {
 
 // GetKubeData returns kubeData
 func (ks *KubeClient) GetKubeData() (*models.KubeData, error) {
-	clientset, err := ks.Connect()
-	if err != nil {
-		return nil, err
-	}
-
 	namespaceBytes, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		ks.logger.Error(err)
@@ -105,7 +100,6 @@ func (ks *KubeClient) GetKubeData() (*models.KubeData, error) {
 	}
 	targetType := os.Getenv("DEPLOYMENT_TYPE")
 	kubeData := &models.KubeData{
-		Clientset:  clientset,
 		Namespace:  namespace,
 		TargetName: targetName,
 		TargetType: targetType,
@@ -115,7 +109,7 @@ func (ks *KubeClient) GetKubeData() (*models.KubeData, error) {
 
 // GetDataFromDeployment returns data from deployment
 func (ks *KubeClient) GetDataFromDeployment(kubeData *models.KubeData) (*models.DeploymentData, error) {
-	allDeploymentData, err := kubeData.Clientset.AppsV1().Deployments(kubeData.Namespace).Get(context.Background(), kubeData.TargetName, metav1.GetOptions{})
+	allDeploymentData, err := ks.clientset.AppsV1().Deployments(kubeData.Namespace).Get(context.Background(), kubeData.TargetName, metav1.GetOptions{})
 	if err != nil {
 		ks.logger.Error("err while getting data from kuberAPI ", err)
 		return nil, err
@@ -141,7 +135,7 @@ func (ks *KubeClient) GetDataFromDeployment(kubeData *models.KubeData) (*models.
 // RolloutDeployment rolls out deployment
 func (ks *KubeClient) RolloutDeployment(kubeData *models.KubeData) error {
 	patchData := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().Format(time.RFC3339))
-	_, err := kubeData.Clientset.AppsV1().Deployments(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
+	_, err := ks.clientset.AppsV1().Deployments(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
 	if err != nil {
 		ks.logger.Printf("### 👎 Warning: Failed to patch %v, restart failed: %v", kubeData.TargetType, err)
 		return err

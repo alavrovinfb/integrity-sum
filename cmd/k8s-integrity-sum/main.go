@@ -4,23 +4,24 @@ import (
 	"context"
 	"flag"
 	"fmt"
-
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
-	"golang.org/x/sync/errgroup"
+	"time"
 
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/integritymonitor"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/integritymonitor"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/common"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/health"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
@@ -46,53 +47,7 @@ func main() {
 		log.Fatalf("failed connect to database: %v", err)
 	}
 
-	optsMap, err := integritymonitor.ParseMonitoringOpts(viper.GetString("monitoring-options"))
-	if err != nil {
-		log.WithError(err).Fatal("cannot parse monitoring options")
-	}
-	monitors := make([]*integritymonitor.IntegrityMonitor, len(optsMap))
-	i := 0
-	for proc, paths := range optsMap {
-		monitors[i], err = initMonitor(log, proc, paths)
-		if err != nil {
-			log.WithError(err).Fatal("failed to initialize integrity monitor")
-		}
-		i++
-	}
-
-	// Run Application with graceful shutdown context
-	graceful.Execute(context.Background(), log, func(ctx context.Context) {
-		if err = setupIntegrity(ctx, log, optsMap); err != nil {
-			log.WithError(err).Fatal("failed to setup integrity")
-			return
-		}
-
-		// TODO: make it independent
-		g := errgroup.Group{}
-		for _, monitor := range monitors {
-			monitor := monitor
-			g.Go(func() error {
-				err := monitor.Run(ctx, viper.GetDuration("duration-time"), viper.GetString("algorithm"))
-				if err == context.Canceled {
-					log.Info("execution cancelled")
-					return err
-				}
-				if err != nil {
-					log.WithError(err).Error("monitor execution aborted")
-					return err
-				}
-				return nil
-			})
-		}
-		g.Wait()
-	})
-}
-
-func initMonitor(log *logrus.Logger, procName string, procPaths []string) (*integritymonitor.IntegrityMonitor, error) {
-	// TODO: separated: storage, data models; remove repository, remove repository dependency from the monitor.
-	repository := repositories.NewAppRepository(log, repositories.DB().SQL())
-
-	// Create alert sender
+	// 	// Create alert sender
 	splunkUrl := viper.GetString("splunk-url")
 	splunkToken := viper.GetString("splunk-token")
 	splunkInsecureSkipVerify := viper.GetBool("splunk-insecure-skip-verify")
@@ -101,15 +56,45 @@ func initMonitor(log *logrus.Logger, procName string, procPaths []string) (*inte
 		alertsSender = splunk.New(log, splunkUrl, splunkToken, splunkInsecureSkipVerify)
 	}
 
-	// Initialize service
-	algorithm := viper.GetString("algorithm")
-	countWorkers := viper.GetInt("count-workers")
-	fileHasher := filehash.NewFileSystemHasher(log, algorithm, countWorkers) // TODO: remove
+	kubeClient := services.NewKubeService(log)
+	_, err = kubeClient.Connect()
+	if err != nil {
+		log.Fatalf("failed connect to kubernetes: %w", err)
+	}
+	kubeData, err := kubeClient.GetKubeData()
+	if err != nil {
+		log.Fatalf("failed get kube data: %w", err)
+	}
+	deploymentData, err := kubeClient.GetDataFromDeployment(kubeData)
+	if err != nil {
+		log.Fatalf("failed get deployment data: %w", err)
+	}
 
-	return integritymonitor.New(log, fileHasher, repository, alertsSender, procName, procPaths)
+	optsMap, err := integritymonitor.ParseMonitoringOpts(viper.GetString("monitoring-options"))
+	if err != nil {
+		log.WithError(err).Fatal("cannot parse monitoring options")
+	}
+
+	// Run Application with graceful shutdown context
+	graceful.Execute(context.Background(), log, func(ctx context.Context) {
+		if err = setupIntegrity(ctx, log, deploymentData, optsMap); err != nil {
+			log.WithError(err).Fatal("failed to setup integrity")
+			return
+		}
+
+		err := runCheckIntegrity(ctx, log, optsMap, alertsSender, kubeData, deploymentData, kubeClient)
+		if err == context.Canceled {
+			log.Info("execution cancelled")
+			return
+		}
+		if err != nil {
+			log.WithError(err).Error("monitor execution aborted")
+			return
+		}
+	})
 }
 
-func setupIntegrity(ctx context.Context, log *logrus.Logger, optsMap map[string][]string) error {
+func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *models.DeploymentData, optsMap map[string][]string) error {
 	g := errgroup.Group{}
 	for pName, pPaths := range optsMap {
 		pName := pName
@@ -120,7 +105,7 @@ func setupIntegrity(ctx context.Context, log *logrus.Logger, optsMap map[string]
 				if err != nil {
 					return err
 				}
-				if err := integritymonitor.SetupIntegrity(ctx, processPath, log); err != nil {
+				if err := integritymonitor.SetupIntegrity(ctx, processPath, log, deploymentData); err != nil {
 					return err
 				}
 			}
@@ -131,7 +116,34 @@ func setupIntegrity(ctx context.Context, log *logrus.Logger, optsMap map[string]
 	if err := g.Wait(); err != nil {
 		return err
 	}
+	return nil
+}
 
+func runCheckIntegrity(ctx context.Context,
+	log *logrus.Logger,
+	optsMap map[string][]string,
+	alertSender alerts.Sender,
+	kubeData *models.KubeData,
+	deploymentData *models.DeploymentData,
+	kubeClient *services.KubeClient) error {
+
+	t := time.NewTicker(viper.GetDuration("duration-time"))
+	for range t.C {
+		for proc, paths := range optsMap {
+			for _, p := range paths {
+				processPath, err := integritymonitor.GetProcessPath(proc, p)
+				if err != nil {
+					log.WithError(err).Error("failed build process path")
+					return err
+				}
+				err = integritymonitor.CheckIntegrity(ctx, log, processPath, alertSender, kubeData, deploymentData, kubeClient)
+				if err != nil {
+					log.WithError(err).Error("failed check integrity")
+					return err
+				}
+			}
+		}
+	}
 	return nil
 }
 
