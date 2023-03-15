@@ -2,17 +2,13 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"os"
-	"strings"
-	"time"
-
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"os"
+	"strings"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
 )
@@ -139,33 +135,19 @@ func (ks *KubeClient) GetDataFromDeployment(kubeData *models.KubeData) (*models.
 	return deploymentData, nil
 }
 
-// RolloutDeployment rolls out deployment
-func (ks *KubeClient) RolloutDeployment(kubeData *models.KubeData) error {
-	var err error
-	patchData := fmt.Sprintf(`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`, time.Now().Format(time.RFC3339))
+// RestartPod restarts pod
+func (ks *KubeClient) RestartPod(kubeData *models.KubeData) error {
+	// TODO: maybe get from deploymentData
+	pName := os.Getenv("POD_NAME")
+	pNamespace := os.Getenv("POD_NAMESPACE")
 
-	switch kubeData.TargetType {
-	case "deployment":
-		// Restarting the deployments
-		_, err = kubeData.Clientset.AppsV1().Deployments(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
-	case "daemonset":
-		// Restarting the daemonsets
-		_, err = kubeData.Clientset.AppsV1().DaemonSets(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
-	case "statefulset":
-		// Restarting the statefulsets
-		_, err = kubeData.Clientset.AppsV1().StatefulSets(kubeData.Namespace).Patch(context.Background(), kubeData.TargetName, types.StrategicMergePatchType, []byte(patchData), metav1.PatchOptions{FieldManager: "kubectl-rollout"})
-	default:
-		ks.logger.Printf("### 🚫 Target %v, named %v is not supported!", kubeData.TargetType, kubeData.TargetName)
-		return errors.New("target is not supported")
-	}
-
-	ks.logger.Printf("### 🔄 Restarting the %v %v", kubeData.TargetType, kubeData.TargetName)
-
+	// Deleting pod to force a restart
+	err := kubeData.Clientset.CoreV1().Pods(pNamespace).Delete(context.Background(), pName, metav1.DeleteOptions{})
 	if err != nil {
-		ks.logger.Printf("### 👎 Warning: Failed to patch %v, restart failed: %v", kubeData.TargetType, err)
+		ks.logger.Printf("### 👎 Warning: Failed to delete pod %v, restart failed: %v", pName, err)
 		return err
+	} else {
+		ks.logger.Printf("### ✅ Pod %v was forced to be restartd", pName)
 	}
-
-	ks.logger.Printf("### ✅ Target %v, named %v was restarted!", kubeData.TargetType, kubeData.TargetName)
 	return nil
 }

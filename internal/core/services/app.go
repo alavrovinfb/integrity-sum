@@ -113,7 +113,7 @@ func (as *AppService) Check(ctx context.Context, dirPath string, deploymentData 
 			return err
 		}
 
-		err = as.IKuberService.RolloutDeployment(kuberData)
+		err = as.IKuberService.RestartPod(kuberData)
 		if err != nil {
 			as.logger.Error("Error while rolling out deployment in k8s", err)
 			return err

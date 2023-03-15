@@ -33,5 +33,5 @@ type IKuberService interface {
 	GetDataFromK8sAPI() (*models.DataFromK8sAPI, error)
 	GetKubeData() (*models.KubeData, error)
 	GetDataFromDeployment(kuberData *models.KubeData) (*models.DeploymentData, error)
-	RolloutDeployment(kuberData *models.KubeData) error
+	RestartPod(kuberData *models.KubeData) error
 }

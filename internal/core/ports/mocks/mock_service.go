@@ -297,9 +297,9 @@ func (mr *MockIKuberServiceMockRecorder) GetDataFromK8sAPI() *gomock.Call {
 }
 
 // RolloutDeployment mocks base method.
-func (m *MockIKuberService) RolloutDeployment(kuberData *models.KubeData) error {
+func (m *MockIKuberService) RestartPod(kuberData *models.KubeData) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RolloutDeployment", kuberData)
+	ret := m.ctrl.Call(m, "RestartPod", kuberData)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -307,5 +307,5 @@ func (m *MockIKuberService) RolloutDeployment(kuberData *models.KubeData) error 
 // RolloutDeployment indicates an expected call of RolloutDeployment.
 func (mr *MockIKuberServiceMockRecorder) RolloutDeployment(kuberData interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RolloutDeployment", reflect.TypeOf((*MockIKuberService)(nil).RolloutDeployment), kuberData)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestartPod", reflect.TypeOf((*MockIKuberService)(nil).RestartPod), kuberData)
 }

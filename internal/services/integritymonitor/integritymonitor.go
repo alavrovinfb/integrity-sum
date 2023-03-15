@@ -202,7 +202,7 @@ func (m *IntegrityMonitor) integrityCheckFailed(
 			m.logger.WithError(err).Error("Failed send alert")
 		}
 	}
-	services.NewKubeService(m.logger).RolloutDeployment(kubeData)
+	services.NewKubeService(m.logger).RestartPod(kubeData)
 }
 
 func GetProcessPath(procName string, path string) (string, error) {
