@@ -47,8 +47,7 @@ spec:
             - name: DEPLOYMENT_TYPE
               value: deployment
           args:
-            - --process={{ .Values.configMap.processName }}
-            - --monitoring-path={{ .Values.configMap.mountPath }}
+            - --monitoring-options={{ .Values.configMap.processName }}={{ join "," .Values.configMap.mountPaths }}
             - --verbose={{ .Values.configMap.verbose }}
             - --db-host={{ .Values.releaseNameDB }}-postgresql
             - --db-port={{ .Values.db.port }}
