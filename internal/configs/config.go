@@ -21,12 +21,11 @@ const (
 )
 
 const (
-	procDir       = "/proc"
-	durationTime  = 30 * time.Second
-	algorithm     = "SHA256"
-	procToMonitor = "sh" // just a placeholder must be set
-	pathToMonitor = "/"
-	clusterName   = "local"
+	procDir      = "/proc"
+	durationTime = 30 * time.Second
+	algorithm    = "SHA256"
+	monitorOpts  = ""
+	clusterName  = "local"
 )
 
 func init() {
@@ -44,8 +43,7 @@ func init() {
 	fsSum.Duration("duration-time", durationTime, "specific interval of time repeatedly for ticker")
 	fsSum.Int("count-workers", runtime.NumCPU(), "number of running workers in the workerpool")
 	fsSum.String("algorithm", algorithm, "hashing algorithm for hashing data")
-	fsSum.String("process", procToMonitor, "the name of the process to be monitored by the hasher")
-	fsSum.String("monitoring-path", pathToMonitor, "the service path to be monitored by the hasher")
+	fsSum.String("monitoring-options", monitorOpts, "process name and process paths to monitoring, should be represented as key=value pair. e.g. nginx=/dir1,/dir2")
 	fsSum.String("cluster-name", clusterName, "Name of cluster where monitor deployed, default local")
 	pflag.CommandLine.AddFlagSet(fsSum)
 	if err := viper.BindPFlags(fsSum); err != nil {

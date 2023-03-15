@@ -21,6 +21,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
@@ -43,7 +44,7 @@ func main() {
 
 	// DB connect
 	if _, err := repositories.Open(log); err != nil {
-		log.Fatalf("failed connect to database: %w", err)
+		log.Fatalf("failed connect to database: %v", err)
 	}
 
 	// 	// Create alert sender
@@ -69,14 +70,19 @@ func main() {
 		log.Fatalf("failed get deployment data: %w", err)
 	}
 
+	optsMap, err := integritymonitor.ParseMonitoringOpts(viper.GetString("monitoring-options"))
+	if err != nil {
+		log.WithError(err).Fatal("cannot parse monitoring options")
+	}
+
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), log, func(ctx context.Context) {
-		if err = setupIntegrity(ctx, log, deploymentData); err != nil {
+		if err = setupIntegrity(ctx, log, deploymentData, optsMap); err != nil {
 			log.WithError(err).Fatal("failed to setup integrity")
 			return
 		}
 
-		err := runCheckIntegrity(ctx, log, alertsSender, kubeData, deploymentData, kubeClient)
+		err := runCheckIntegrity(ctx, log, optsMap, alertsSender, kubeData, deploymentData, kubeClient)
 		if err == context.Canceled {
 			log.Info("execution cancelled")
 			return
@@ -88,38 +94,54 @@ func main() {
 	})
 }
 
-func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *models.DeploymentData) error {
-	processPath, err := integritymonitor.GetProcessPath(
-		viper.GetString("process"),
-		viper.GetString("monitoring-path"),
-	)
-	if err != nil {
+func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *models.DeploymentData, optsMap map[string][]string) error {
+	g := errgroup.Group{}
+	for pName, pPaths := range optsMap {
+		pName := pName
+		pPaths := pPaths
+		g.Go(func() error {
+			for _, p := range pPaths {
+				processPath, err := integritymonitor.GetProcessPath(pName, p)
+				if err != nil {
+					return err
+				}
+				if err := integritymonitor.SetupIntegrity(ctx, processPath, log, deploymentData); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
 		return err
 	}
-	return integritymonitor.SetupIntegrity(ctx, processPath, log, deploymentData)
+	return nil
 }
 
 func runCheckIntegrity(ctx context.Context,
 	log *logrus.Logger,
+	optsMap map[string][]string,
 	alertSender alerts.Sender,
 	kubeData *models.KubeData,
 	deploymentData *models.DeploymentData,
 	kubeClient *services.KubeClient) error {
 
-	processPath, err := integritymonitor.GetProcessPath(
-		viper.GetString("process"),
-		viper.GetString("monitoring-path"),
-	)
-	if err != nil {
-		return err
-	}
-
 	t := time.NewTicker(viper.GetDuration("duration-time"))
 	for range t.C {
-		err := integritymonitor.CheckIntegrity(ctx, log, processPath, alertSender, kubeData, deploymentData, kubeClient)
-		if err != nil {
-			log.WithError(err).Error("failed check integrity")
-			return err
+		for proc, paths := range optsMap {
+			for _, p := range paths {
+				processPath, err := integritymonitor.GetProcessPath(proc, p)
+				if err != nil {
+					log.WithError(err).Error("failed build process path")
+					return err
+				}
+				err = integritymonitor.CheckIntegrity(ctx, log, processPath, alertSender, kubeData, deploymentData, kubeClient)
+				if err != nil {
+					log.WithError(err).Error("failed check integrity")
+					return err
+				}
+			}
 		}
 	}
 	return nil

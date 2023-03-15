@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
@@ -248,4 +250,36 @@ func fileHashToDtoDB(algName string, fh *worker.FileHash) *api.HashData {
 		FullFilePath: fh.Path,
 		Algorithm:    algName,
 	}
+}
+
+func ParseMonitoringOpts(opts string) (map[string][]string, error) {
+	if opts == "" {
+		return nil, fmt.Errorf("--%s %s", "monitoring-options", "is empty")
+	}
+	unOpts, err := strconv.Unquote(opts)
+	if err != nil {
+		unOpts = opts
+	}
+
+	processes := strings.Split(unOpts, " ")
+	if len(processes) < 1 {
+		return nil, fmt.Errorf("--%s %s", "monitoring-options", "is empty")
+	}
+	optsMap := make(map[string][]string)
+	for _, p := range processes {
+		procPaths := strings.Split(p, "=")
+		if len(procPaths) < 2 {
+			return nil, fmt.Errorf("%s", "application and monitoring paths should be represented as key=value pair")
+		}
+
+		if procPaths[1] == "" {
+			return nil, fmt.Errorf("%s", "monitoring path is required")
+		}
+		paths := strings.Split(strings.Trim(procPaths[1], ","), ",")
+		for i, v := range paths {
+			paths[i] = strings.TrimSpace(v)
+		}
+		optsMap[procPaths[0]] = paths
+	}
+	return optsMap, nil
 }

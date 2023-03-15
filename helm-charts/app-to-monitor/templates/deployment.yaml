@@ -20,8 +20,7 @@ spec:
         app: {{ .Values.metadata.appName }}
       annotations:
         integrity-monitor.scnsoft.com/inject: "true"
-        integrity-monitor.scnsoft.com/process: {{ .Values.configMap.processName }}
-        integrity-monitor.scnsoft.com/monitoring-path: {{ .Values.configMap.mountPath }}
+        {{ .Values.configMap.processName }}.integrity-monitor.scnsoft.com/monitoring-paths: {{ join "," .Values.configMap.mountPaths }}
     spec:
       serviceAccountName: {{ .Release.Name }}-{{ .Values.serviceAccount }}
       shareProcessNamespace: true
