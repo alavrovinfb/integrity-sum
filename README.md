@@ -148,8 +148,8 @@ Use `make purge-db` to completle remove db container and it storage.
 If you want to use a hasher-sidecar, then you need to specify the following data in your deployment:
 Pod annotations:
 + `integrity-monitor.scnsoft.com/inject: "true"` - The sidecar injection annotation. If true, sidecar will be injected.
-+ `integrity-monitor.scnsoft.com/process: nginx` - This annotation introduces a process to be monitored.
-+ `integrity-monitor.scnsoft.com/monitoring-path: etc/nginx` - This annotation specifies monitoring path.
++ `<monitoring process name>.integrity-monitor.scnsoft.com/monitoring-paths: etc/nginx,usr/bin` - This annotation introduces a process to be monitored and specifies its paths.
+Annotation prefix should be the process name for instance `nginx`, `nginx.integrity-monitor.scnsoft.com/monitoring-paths`
 Service account:
 + `template:spec:serviceAccountName:` api-version-`hasher`
 Share process namespace should be enabled.

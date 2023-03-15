@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -23,36 +25,34 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
 )
 
-var ErrIntegrityNewFileFoud = errors.New("new file found")
+var ErrIntegrityNewFileFound = errors.New("new file found")
 var ErrIntegrityFileDeleted = errors.New("file deleted")
 var ErrIntegrityFileMismatch = errors.New("file content mismatch")
 
 type IntegrityMonitor struct {
-	logger              *logrus.Logger
-	fshasher            *filehash.FileSystemHasher
-	repository          ports.IAppRepository
-	alertSender         alerts.Sender
-	monitoringDirectory string
+	logger                *logrus.Logger
+	fshasher              *filehash.FileSystemHasher
+	repository            ports.IAppRepository
+	alertSender           alerts.Sender
+	monitoringDirectories []string
 }
 
-func New(logger *logrus.Logger,
-	fshasher *filehash.FileSystemHasher,
-	repository ports.IAppRepository,
-	alertSender alerts.Sender,
-	monitorProcess string,
-	monitorProcessPath string,
-) (*IntegrityMonitor, error) {
-	processPath, err := GetProcessPath(monitorProcess, monitorProcessPath)
-	if err != nil {
-		return nil, err
+func New(logger *logrus.Logger, fshasher *filehash.FileSystemHasher, repository ports.IAppRepository, alertSender alerts.Sender, monitorProcess string, monitorProcessPaths []string) (*IntegrityMonitor, error) {
+	processPaths := make([]string, len(monitorProcessPaths))
+	for i, p := range monitorProcessPaths {
+		processPath, err := GetProcessPath(monitorProcess, p)
+		if err != nil {
+			return nil, err
+		}
+		processPaths[i] = processPath
 	}
 
 	return &IntegrityMonitor{
-		logger:              logger,
-		fshasher:            fshasher,
-		repository:          repository,
-		alertSender:         alertSender,
-		monitoringDirectory: processPath,
+		logger:                logger,
+		fshasher:              fshasher,
+		repository:            repository,
+		alertSender:           alertSender,
+		monitoringDirectories: processPaths,
 	}, nil
 }
 
@@ -104,7 +104,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 			dataK8s.DeploymentData,
 			errC,
 		):
-			log.WithField("countHashes", countHashes).Info("hashes stored successfully")
+			log.WithField("countHashes", countHashes).WithField("monitoringDirectory", monitoringDirectory).Info("hashes stored successfully")
 			log.Debug("end setup integrity")
 			return nil
 
@@ -116,65 +116,67 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 }
 
 func (m *IntegrityMonitor) checkIntegrity(ctx context.Context, algName string) error {
-	m.logger.Debug("begin check integrity")
-	fileHashes, err := m.fshasher.CalculateAll(ctx, m.monitoringDirectory)
-	if err != nil {
-		m.logger.WithError(err).Error("failed calculate file hashes")
-		return err
-	}
+	for _, p := range m.monitoringDirectories {
+		m.logger.Debugf("begin check integrity for path %s", p)
+		fileHashes, err := m.fshasher.CalculateAll(ctx, p)
+		if err != nil {
+			m.logger.WithError(err).Error("failed calculate file hashes")
+			return err
+		}
 
-	k8sData, err := services.NewKubeService(m.logger).GetDataFromK8sAPI()
-	if err != nil {
-		m.logger.WithError(err).Error("get data from k8s API")
-		return err
-	}
-	fileHashesDto, err := m.repository.GetHashData(
-		m.monitoringDirectory,
-		algName,
-		k8sData.DeploymentData,
-	)
-	if err != nil {
-		return fmt.Errorf("failed get hash data: %w", err)
-	}
+		k8sData, err := services.NewKubeService(m.logger).GetDataFromK8sAPI()
+		if err != nil {
+			m.logger.WithError(err).Error("get data from k8s API")
+			return err
+		}
+		fileHashesDto, err := m.repository.GetHashData(
+			p,
+			algName,
+			k8sData.DeploymentData,
+		)
+		if err != nil {
+			return fmt.Errorf("failed get hash data: %w", err)
+		}
 
-	referenceHashes := make(map[string]*models.HashDataFromDB, len(fileHashesDto))
+		referenceHashes := make(map[string]*models.HashDataFromDB, len(fileHashesDto))
 
-	for _, fh := range fileHashesDto {
-		referenceHashes[fh.FullFilePath] = fh
-	}
+		for _, fh := range fileHashesDto {
+			referenceHashes[fh.FullFilePath] = fh
+		}
 
-	for _, fh := range fileHashes {
-		if fhdto, ok := referenceHashes[fh.Path]; ok {
-			if fhdto.Hash != fh.Hash {
+		for _, fh := range fileHashes {
+			if fhdto, ok := referenceHashes[fh.Path]; ok {
+				if fhdto.Hash != fh.Hash {
+					m.integrityCheckFailed(
+						ErrIntegrityFileMismatch,
+						fh.Path,
+						k8sData.KubeData,
+						k8sData.DeploymentData,
+					)
+					return ErrIntegrityFileMismatch
+				}
+				delete(referenceHashes, fh.Path)
+			} else {
+				m.integrityCheckFailed(ErrIntegrityNewFileFound, fh.Path, k8sData.KubeData, k8sData.DeploymentData)
+				return ErrIntegrityNewFileFound
+			}
+		}
+
+		if len(referenceHashes) > 0 {
+			for pPath := range referenceHashes {
 				m.integrityCheckFailed(
-					ErrIntegrityFileMismatch,
-					fh.Path,
+					ErrIntegrityFileDeleted,
+					pPath,
 					k8sData.KubeData,
 					k8sData.DeploymentData,
 				)
-				return ErrIntegrityFileMismatch
+				return ErrIntegrityFileDeleted
 			}
-			delete(referenceHashes, fh.Path)
-		} else {
-			m.integrityCheckFailed(ErrIntegrityNewFileFoud, fh.Path, k8sData.KubeData, k8sData.DeploymentData)
-			return ErrIntegrityNewFileFoud
 		}
 	}
-
-	if len(referenceHashes) > 0 {
-		for path := range referenceHashes {
-			m.integrityCheckFailed(
-				ErrIntegrityFileDeleted,
-				path,
-				k8sData.KubeData,
-				k8sData.DeploymentData,
-			)
-			return ErrIntegrityFileDeleted
-		}
-	}
-
 	m.logger.Debug("end check integrity")
-	return err
+
+	return nil
 }
 
 func (m *IntegrityMonitor) integrityCheckFailed(
@@ -186,7 +188,7 @@ func (m *IntegrityMonitor) integrityCheckFailed(
 	switch err {
 	case ErrIntegrityFileMismatch:
 		m.logger.WithField("path", path).Warn("file content missmatch")
-	case ErrIntegrityNewFileFoud:
+	case ErrIntegrityNewFileFound:
 		m.logger.WithField("path", path).Warn("new file found")
 	case ErrIntegrityFileDeleted:
 		m.logger.WithField("path", path).Warn("file deleted")
@@ -242,11 +244,12 @@ func saveHashes(
 
 		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 		defer cancel()
-
-		query, args := data.NewHashFileData().PrepareBatchQuery(hashData, dd)
-		err := repositories.ExecQueryTx(ctx, query, args...)
-		if err != nil {
-			errC <- err
+		if countHashes > 0 {
+			query, args := data.NewHashFileData().PrepareBatchQuery(hashData, dd)
+			err := repositories.ExecQueryTx(ctx, query, args...)
+			if err != nil {
+				errC <- err
+			}
 		}
 		doneC <- countHashes
 	}()
@@ -261,4 +264,37 @@ func FileHashDtoDB(algName string, fh *filehash.FileHash) *api.HashData {
 		FullFilePath: fh.Path,
 		Algorithm:    algName,
 	}
+}
+
+func ParseMonitoringOpts(opts string) (map[string][]string, error) {
+	if opts == "" {
+		return nil, fmt.Errorf("--%s %s", "monitoring-options", "is empty")
+	}
+	unOpts, err := strconv.Unquote(opts)
+	if err != nil {
+		unOpts = opts
+	}
+
+	processes := strings.Split(unOpts, " ")
+	if len(processes) < 1 {
+		return nil, fmt.Errorf("--%s %s", "monitoring-options", "is empty")
+	}
+	optsMap := make(map[string][]string)
+	for _, p := range processes {
+		procPaths := strings.Split(p, "=")
+		if len(procPaths) < 2 {
+			return nil, fmt.Errorf("%s", "application and monitoring paths should be represented as key=value pair")
+		}
+
+		if procPaths[1] == "" {
+			return nil, fmt.Errorf("%s", "monitoring path is required")
+		}
+		paths := strings.Split(strings.Trim(procPaths[1], ","), ",")
+		for i, v := range paths {
+			paths[i] = strings.TrimSpace(v)
+		}
+		optsMap[procPaths[0]] = paths
+	}
+
+	return optsMap, nil
 }
