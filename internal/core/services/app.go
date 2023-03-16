@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -96,12 +95,10 @@ func (as *AppService) Check(ctx context.Context, dirPath string, deploymentData 
 
 		// alert sender is optional
 		if as.alertSender != nil {
-			err := as.alertSender.Send(alerts.Alert{
-				Time:    time.Now(),
-				Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
-				Reason:  "mismatch file content",
-				Path:    dirPath,
-			})
+			err := as.alertSender.Send(alerts.New(fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
+				"mismatch file content",
+				dirPath,
+			))
 			if err != nil {
 				as.logger.WithError(err).Error("Failed send alert")
 			}

@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
@@ -18,14 +21,13 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/worker"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 )
 
 const (
 	IntegrityMessageNewFileFound = "new file found"
 	IntegrityMessageFileDeleted  = "file deleted"
 	IntegrityMessageFileMismatch = "file content mismatch"
+	IntegrityMessageUnknownErr   = "unknown integrity error"
 )
 
 func GetProcessPath(procName string, path string) (string, error) {
@@ -218,21 +220,19 @@ func integrityCheckFailed(
 	kubeClient *services.KubeClient,
 ) {
 	l := log.WithError(err)
-	var path string
+	var mPath string
 	var integrityError *IntegrityError
 	if errors.As(err, &integrityError) {
-		path = integrityError.Path
+		mPath = integrityError.Path
 		l = l.WithField("path", integrityError.Path)
 	}
 
 	l.Error("check integrity failed")
 
-	e := alerts.Send(alerts.Alert{
-		Time:    time.Now(),
-		Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
-		Reason:  err.Error(),
-		Path:    path,
-	})
+	e := alerts.Send(alerts.New(fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
+		err.Error(),
+		mPath,
+	))
 	if e != nil {
 		log.WithError(e).Error("Failed send alert")
 	}
