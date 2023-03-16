@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
 type Release struct {
@@ -18,18 +16,11 @@ type Release struct {
 }
 
 type ReleaseStorage struct {
-	db     *sql.DB
-	alg    string
-	logger *logrus.Logger
+	db *sql.DB
 }
 
-// NewReleaseStorage creates a new ReleaseStorage structure to work with the database table
-func NewReleaseStorage(db *sql.DB, alg string, logger *logrus.Logger) *ReleaseStorage {
-	return &ReleaseStorage{
-		db:     db,
-		alg:    alg,
-		logger: logger,
-	}
+func NewReleaseData(db *sql.DB) *ReleaseStorage {
+	return &ReleaseStorage{db: db}
 }
 
 // PrepareQuery creates a query and a set of arguments for preparing data for insertion into the database
@@ -56,7 +47,7 @@ func (rs ReleaseStorage) DeleteOldData(threshold string) error {
 
 // Update changes column updated_at with current timestamp
 func (rs ReleaseStorage) Update(releaseName string) error {
-	rs.logger.Debug("update timestamp releases")
+	// rs.logger.Debug("update timestamp releases")
 	query := `UPDATE  releases SET updated_at=NOW() WHERE name=$1;`
 	_, err := rs.db.Exec(query, releaseName)
 	return err

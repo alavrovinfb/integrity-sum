@@ -25,7 +25,6 @@ type IKuberService interface {
 }
 
 type KubeData struct {
-	Clientset  *kubernetes.Clientset
 	Namespace  string
 	TargetName string
 	TargetType string
@@ -57,28 +56,23 @@ func NewKubeService(logger *logrus.Logger) *KubeClient {
 }
 
 // Connect to Kubernetes API
-func (ks *KubeClient) Connect() (*kubernetes.Clientset, error) {
-	if ks.clientset != nil {
-		return ks.clientset, nil
-	}
-
+func (ks *KubeClient) Connect() error {
 	ks.logger.Info("### 🌀 Attempting to use in cluster config")
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		ks.logger.Error(err)
-		return nil, err
+		return err
 	}
 
 	ks.logger.Info("### 💻 Connecting to Kubernetes API, using host: ", config.Host)
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		ks.logger.Error(err)
-		return nil, err
+		return err
 	}
-
 	ks.clientset = clientset
 
-	return clientset, nil
+	return nil
 }
 
 // GetDataFromK8sAPI returns data from deployment
@@ -110,11 +104,6 @@ func (ks *KubeClient) GetDataFromK8sAPI() (*DataFromK8sAPI, error) {
 
 // GetKubeData returns kubeData
 func (ks *KubeClient) GetKubeData() (*KubeData, error) {
-	clientset, err := ks.Connect()
-	if err != nil {
-		return nil, err
-	}
-
 	namespaceBytes, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		ks.logger.Error(err)
@@ -134,7 +123,6 @@ func (ks *KubeClient) GetKubeData() (*KubeData, error) {
 	}
 	targetType := os.Getenv("DEPLOYMENT_TYPE")
 	kubeData := &KubeData{
-		Clientset:  clientset,
 		Namespace:  namespace,
 		TargetName: targetName,
 		TargetType: targetType,
@@ -144,7 +132,7 @@ func (ks *KubeClient) GetKubeData() (*KubeData, error) {
 
 // GetDataFromDeployment returns data from deployment
 func (ks *KubeClient) GetDataFromDeployment(kubeData *KubeData) (*DeploymentData, error) {
-	allDeploymentData, err := kubeData.Clientset.AppsV1().Deployments(kubeData.Namespace).Get(
+	allDeploymentData, err := ks.clientset.AppsV1().Deployments(kubeData.Namespace).Get(
 		context.Background(),
 		kubeData.TargetName,
 		metav1.GetOptions{},
@@ -178,20 +166,18 @@ func (ks *KubeClient) RolloutDeployment(kubeData *KubeData) error {
 		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"%s"}}}}}`,
 		time.Now().Format(time.RFC3339),
 	)
-	_, err := kubeData.Clientset.AppsV1().Deployments(kubeData.Namespace).Patch(
+	_, err := ks.clientset.AppsV1().Deployments(kubeData.Namespace).Patch(
 		context.Background(),
 		kubeData.TargetName,
 		types.StrategicMergePatchType,
 		[]byte(patchData),
 		metav1.PatchOptions{FieldManager: "kubectl-rollout"},
 	)
-
 	if err != nil {
 		ks.logger.Printf("### 👎 Warning: Failed to patch %v, restart failed: %v", kubeData.TargetType, err)
 		return err
 	} else {
 		ks.logger.Printf("### ✅ Target %v, named %v was restarted!", kubeData.TargetType, kubeData.TargetName)
 	}
-
 	return nil
 }

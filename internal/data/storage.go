@@ -1,7 +1,6 @@
 package data
 
 import (
-	"context"
 	"database/sql"
 	"sync"
 	"time"
@@ -73,21 +72,6 @@ func WithTx(f func(txn *sql.Tx) error) error {
 	return nil
 }
 
-// ExecTransactions executes two SQL queries in a transaction
-func ExecTransactions(ctx context.Context, sqlQueryR, sqlQueryH string, argsR []any, argsH ...any) error {
-	return WithTx(func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, sqlQueryR, argsR...)
-		if err != nil {
-			return err
-		}
-		_, err = tx.ExecContext(ctx, sqlQueryH, argsH...)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-}
-
 // ConnectionToDB connects to the database
 func ConnectionToDB(logger *logrus.Logger) (*sql.DB, error) {
 	logger.Info("Connecting to the database..")
@@ -106,7 +90,7 @@ func CheckOldData(algName string, logger *logrus.Logger) {
 		for {
 			<-ticker.C
 			logger.Debug("### ✅ checking old data in db")
-			err := NewReleaseStorage(DB().SQL(), algName, logger).DeleteOldData(viper.GetString("db-threshold-timeout"))
+			err := NewReleaseData(DB().SQL()).DeleteOldData(viper.GetString("db-threshold-timeout"))
 			if err != nil {
 				logger.WithError(err).Error("failed check old data in DB")
 			}

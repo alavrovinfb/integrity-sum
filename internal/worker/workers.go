@@ -6,14 +6,18 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/hasher"
 )
 
-type HashWorker func(ind int, fileNameC <-chan string, hashC chan<- filehash.FileHash)
+type FileHash struct {
+	Path string
+	Hash string
+}
 
-func WorkersPool(countWorkers int, fileNameC <-chan string, w HashWorker) <-chan filehash.FileHash {
-	hashC := make(chan filehash.FileHash, countWorkers)
+type HashWorker func(ind int, fileNameC <-chan string, hashC chan<- FileHash)
+
+func WorkersPool(countWorkers int, fileNameC <-chan string, w HashWorker) <-chan FileHash {
+	hashC := make(chan FileHash, countWorkers)
 	go func() {
 		defer close(hashC)
 		var wg sync.WaitGroup
@@ -31,7 +35,7 @@ func WorkersPool(countWorkers int, fileNameC <-chan string, w HashWorker) <-chan
 }
 
 func NewWorker(ctx context.Context, algName string, log *logrus.Logger) HashWorker {
-	return func(ind int, fileNameC <-chan string, hashC chan<- filehash.FileHash) {
+	return func(ind int, fileNameC <-chan string, hashC chan<- FileHash) {
 		h := hasher.NewFileHasher(algName, log)
 		for v := range fileNameC {
 			select {
@@ -45,7 +49,7 @@ func NewWorker(ctx context.Context, algName string, log *logrus.Logger) HashWork
 				log.WithError(err).WithField("file", v).Error("calculate hash")
 				continue
 			}
-			hashC <- filehash.FileHash{
+			hashC <- FileHash{
 				Path: v,
 				Hash: hash,
 			}

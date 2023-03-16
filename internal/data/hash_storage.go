@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 )
 
 type HashData struct {
@@ -26,18 +24,11 @@ type HashDataOutput struct {
 }
 
 type HashStorage struct {
-	db     *sql.DB
-	alg    string
-	logger *logrus.Logger
+	db *sql.DB
 }
 
-// NewHashStorage creates a new HashStorage structure to work with the database table.
-func NewHashStorage(db *sql.DB, alg string, logger *logrus.Logger) *HashStorage {
-	return &HashStorage{
-		db:     db,
-		alg:    alg,
-		logger: logger,
-	}
+func NewHashData(db *sql.DB) *HashStorage {
+	return &HashStorage{db: db}
 }
 
 // PrepareQuery creates a query and a set of arguments for preparing data for insertion into the database
@@ -74,14 +65,14 @@ func (hs HashStorage) PrepareQuery(hashData []*HashData, releaseName string) (st
 }
 
 // Get gets data from the database
-func (hs HashStorage) Get(dirName string, podName string) ([]*HashDataOutput, error) {
+func (hs HashStorage) Get(alg string, dirName string, podName string) ([]*HashDataOutput, error) {
 	var dataHashes []*HashDataOutput
 
 	query := `SELECT id,full_file_name, hash_sum, algorithm, name_pod, release_id
 		FROM filehashes WHERE full_file_name LIKE $1 and algorithm=$2 and name_pod=$3`
-	rows, err := hs.db.Query(query, "%"+dirName+"%", hs.alg, podName)
+	rows, err := hs.db.Query(query, "%"+dirName+"%", alg, podName)
 	if err != nil {
-		hs.logger.Error(err)
+		// hs.logger.Error(err)
 		return nil, err
 	}
 
@@ -92,7 +83,7 @@ func (hs HashStorage) Get(dirName string, podName string) ([]*HashDataOutput, er
 		err = rows.Scan(&dataHash.ID, &dataHash.FullFileName,
 			&dataHash.Hash, &dataHash.Algorithm, &dataHash.NamePod, &dataHash.ReleaseId)
 		if err != nil {
-			hs.logger.Error(err)
+			// hs.logger.Error(err)
 			return nil, err
 		}
 		dataHashes = append(dataHashes, &dataHash)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 
@@ -12,8 +13,9 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/services/filehash"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/walker"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/worker"
 )
 
 // Initializes the binding of the flag to a variable that must run before the main() function
@@ -43,44 +45,41 @@ func main() {
 	logger := logger.Init(viper.GetString("verbose"))
 
 	graceful.Execute(context.Background(), logger, func(ctx context.Context) {
-		run(ctx, logger)
+		switch {
+		case viper.GetBool("doHelp"):
+			flag.Usage = func() {
+				fmt.Fprintf(os.Stderr, "Custom help %s:\nYou can use the following flag:\n", os.Args[0])
+
+				flag.VisitAll(func(f *flag.Flag) {
+					fmt.Fprintf(os.Stderr, "  flag -%v \n       %v\n", f.Name, f.Usage)
+				})
+			}
+			flag.Usage()
+		case len(viper.GetString("dirPath")) > 0:
+			run(ctx, logger)
+		default:
+			log.Println("use the -h flag on the command line to see all the flags in this app")
+		}
 	})
 }
 
-func run(ctx context.Context, logger *logrus.Logger) {
-	switch {
-	case viper.GetBool("doHelp"):
-		flag.Usage = func() {
-			fmt.Fprintf(os.Stderr, "Custom help %s:\nYou can use the following flag:\n", os.Args[0])
-
-			flag.VisitAll(func(f *flag.Flag) {
-				fmt.Fprintf(os.Stderr, "  flag -%v \n       %v\n", f.Name, f.Usage)
-			})
-		}
-		flag.Usage()
-	case len(viper.GetString("dirPath")) > 0:
-		hashservice := filehash.NewFileSystemHasher(logger, viper.GetString("algorithm"), viper.GetInt("count-workers"))
-		resultChan, errChan := hashservice.CalculateInChan(ctx, viper.GetString("dirPath"))
-
-		for {
-			select {
-			case hashData, ok := <-resultChan:
-				if ok {
-					fmt.Printf("%s %s\n", hashData.Hash, hashData.Path)
-				} else {
-					resultChan = nil
-				}
-			case err := <-errChan:
-				if err != nil {
-					fmt.Printf("error: %v\n", err)
-				}
-				return
-			case <-ctx.Done():
-				fmt.Println("program termination after receiving a signal")
+func run(ctx context.Context, log *logrus.Logger) {
+	hashesChan := worker.WorkersPool(
+		viper.GetInt("count-workers"),
+		walker.ChanWalkDir(ctx, viper.GetString("dirPath"), log),
+		worker.NewWorker(ctx, viper.GetString("algorithm"), log),
+	)
+	for {
+		select {
+		case hashData, ok := <-hashesChan:
+			if !ok {
+				log.Debug("completed")
 				return
 			}
+			fmt.Printf("%s %s\n", hashData.Hash, hashData.Path)
+		case <-ctx.Done():
+			fmt.Println("program termination after receiving a signal")
+			return
 		}
-	default:
-		logger.Println("use the -h flag on the command line to see all the flags in this app")
 	}
 }
