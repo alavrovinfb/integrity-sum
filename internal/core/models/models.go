@@ -1,9 +1,5 @@
 package models
 
-import (
-	"k8s.io/client-go/kubernetes"
-)
-
 type HashDataFromDB struct {
 	ID             int
 	Hash           string
@@ -16,7 +12,6 @@ type HashDataFromDB struct {
 }
 
 type KubeData struct {
-	Clientset  *kubernetes.Clientset
 	Namespace  string
 	TargetName string
 	TargetType string

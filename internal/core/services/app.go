@@ -98,7 +98,7 @@ func (as *AppService) Check(ctx context.Context, dirPath string, deploymentData 
 		if as.alertSender != nil {
 			err := as.alertSender.Send(alerts.Alert{
 				Time:    time.Now(),
-				Message: fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
+				Message: fmt.Sprintf("Restart pod %v", deploymentData.NamePod),
 				Reason:  "mismatch file content",
 				Path:    dirPath,
 			})
@@ -115,7 +115,7 @@ func (as *AppService) Check(ctx context.Context, dirPath string, deploymentData 
 
 		err = as.IKuberService.RestartPod(kuberData)
 		if err != nil {
-			as.logger.Error("Error while rolling out deployment in k8s", err)
+			as.logger.Error("Error while restarting pod in k8s", err)
 			return err
 		}
 	}

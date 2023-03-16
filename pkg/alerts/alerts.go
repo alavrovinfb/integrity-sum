@@ -1,13 +1,7 @@
 package alerts
 
 import (
-	"fmt"
 	"time"
-)
-
-const (
-	TypeSplunk = "splunk"
-	TypeSyslog = "syslog"
 )
 
 type Alert struct {
@@ -17,36 +11,25 @@ type Alert struct {
 	Path    string
 }
 
-type Registry map[string]Sender
-
-type Errors []error
-
 type Sender interface {
 	Send(alert Alert) error
 }
 
-func (r Registry) Add(senderType string, s Sender) {
-	r[senderType] = s
+var registry = []Sender{}
+
+func Register(s Sender) {
+	registry = append(registry, s)
 }
 
-func (r Registry) Send(alert Alert) error {
-	var errs *Errors
-	for _, s := range r {
+func Send(alert Alert) error {
+	var errs Errors
+	for _, s := range registry {
 		if err := s.Send(alert); err != nil {
-			errs.Collect(err)
+			errs.collect(err)
 		}
 	}
-
-	return errs
-}
-
-func (es *Errors) Collect(e error) { *es = append(*es, e) }
-
-func (es *Errors) Error() (err string) {
-	err = "alert errors: "
-	for i, e := range *es {
-		err += fmt.Sprintf("Error %d: %s\n", i, e.Error())
+	if len(errs) == 0 {
+		return nil
 	}
-
-	return err
+	return errs
 }

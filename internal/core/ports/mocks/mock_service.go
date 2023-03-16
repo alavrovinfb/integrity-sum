@@ -251,21 +251,6 @@ func (m *MockIKuberService) EXPECT() *MockIKuberServiceMockRecorder {
 	return m.recorder
 }
 
-// ConnectionToK8sAPI mocks base method.
-func (m *MockIKuberService) GetKubeData() (*models.KubeData, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetKubeData")
-	ret0, _ := ret[0].(*models.KubeData)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ConnectionToK8sAPI indicates an expected call of ConnectionToK8sAPI.
-func (mr *MockIKuberServiceMockRecorder) ConnectionToK8sAPI() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKubeData", reflect.TypeOf((*MockIKuberService)(nil).GetKubeData))
-}
-
 // GetDataFromDeployment mocks base method.
 func (m *MockIKuberService) GetDataFromDeployment(kuberData *models.KubeData) (*models.DeploymentData, error) {
 	m.ctrl.T.Helper()
@@ -296,7 +281,22 @@ func (mr *MockIKuberServiceMockRecorder) GetDataFromK8sAPI() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataFromK8sAPI", reflect.TypeOf((*MockIKuberService)(nil).GetDataFromK8sAPI))
 }
 
-// RolloutDeployment mocks base method.
+// GetKubeData mocks base method.
+func (m *MockIKuberService) GetKubeData() (*models.KubeData, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetKubeData")
+	ret0, _ := ret[0].(*models.KubeData)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetKubeData indicates an expected call of GetKubeData.
+func (mr *MockIKuberServiceMockRecorder) GetKubeData() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKubeData", reflect.TypeOf((*MockIKuberService)(nil).GetKubeData))
+}
+
+// RestartPod mocks base method.
 func (m *MockIKuberService) RestartPod(kuberData *models.KubeData) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RestartPod", kuberData)
@@ -304,8 +304,8 @@ func (m *MockIKuberService) RestartPod(kuberData *models.KubeData) error {
 	return ret0
 }
 
-// RolloutDeployment indicates an expected call of RolloutDeployment.
-func (mr *MockIKuberServiceMockRecorder) RolloutDeployment(kuberData interface{}) *gomock.Call {
+// RestartPod indicates an expected call of RestartPod.
+func (mr *MockIKuberServiceMockRecorder) RestartPod(kuberData interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestartPod", reflect.TypeOf((*MockIKuberService)(nil).RestartPod), kuberData)
 }

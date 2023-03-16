@@ -78,11 +78,6 @@ func (ks *KubeClient) GetDataFromK8sAPI() (*models.DataFromK8sAPI, error) {
 
 // GetKubeData returns kubeData
 func (ks *KubeClient) GetKubeData() (*models.KubeData, error) {
-	clientset, err := ks.Connect()
-	if err != nil {
-		return nil, err
-	}
-
 	namespaceBytes, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		ks.logger.Error(err)
@@ -102,7 +97,6 @@ func (ks *KubeClient) GetKubeData() (*models.KubeData, error) {
 	}
 	targetType := os.Getenv("DEPLOYMENT_TYPE")
 	kubeData := &models.KubeData{
-		Clientset:  clientset,
 		Namespace:  namespace,
 		TargetName: targetName,
 		TargetType: targetType,
@@ -112,7 +106,7 @@ func (ks *KubeClient) GetKubeData() (*models.KubeData, error) {
 
 // GetDataFromDeployment returns data from deployment
 func (ks *KubeClient) GetDataFromDeployment(kubeData *models.KubeData) (*models.DeploymentData, error) {
-	allDeploymentData, err := kubeData.Clientset.AppsV1().Deployments(kubeData.Namespace).Get(context.Background(), kubeData.TargetName, metav1.GetOptions{})
+	allDeploymentData, err := ks.clientset.AppsV1().Deployments(kubeData.Namespace).Get(context.Background(), kubeData.TargetName, metav1.GetOptions{})
 	if err != nil {
 		ks.logger.Error("err while getting data from kuberAPI ", err)
 		return nil, err
@@ -142,12 +136,13 @@ func (ks *KubeClient) RestartPod(kubeData *models.KubeData) error {
 	pNamespace := os.Getenv("POD_NAMESPACE")
 
 	// Deleting pod to force a restart
-	err := kubeData.Clientset.CoreV1().Pods(pNamespace).Delete(context.Background(), pName, metav1.DeleteOptions{})
+	err := ks.clientset.CoreV1().Pods(pNamespace).Delete(context.Background(), pName, metav1.DeleteOptions{})
+
 	if err != nil {
 		ks.logger.Printf("### 👎 Warning: Failed to delete pod %v, restart failed: %v", pName, err)
 		return err
-	} else {
-		ks.logger.Printf("### ✅ Pod %v was forced to be restartd", pName)
 	}
+
+	ks.logger.Printf("### ✅ Pod %v was forced to be restartd", pName)
 	return nil
 }
