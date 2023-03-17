@@ -12,18 +12,17 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/integritymonitor"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
 	syslogclient "github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/syslog"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/common"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/health"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 )
 
 func main() {
@@ -45,8 +44,8 @@ func main() {
 	DBMigration(log)
 
 	// DB connect
-	if _, err := repositories.Open(log); err != nil {
-		log.Fatalf("failed connect to database: %v", err)
+	if _, err := data.Open(log); err != nil {
+		log.Fatalf("failed connect to database: %w", err)
 	}
 
 	// 	// Create alert sender
@@ -70,8 +69,8 @@ func main() {
 		defer syslogSender.Close()
 	}
 
-	kubeClient := services.NewKubeService(log)
-	_, err = kubeClient.Connect()
+	kubeClient := k8s.NewKubeService(log)
+	err = kubeClient.Connect()
 	if err != nil {
 		log.Fatalf("failed connect to kubernetes: %w", err)
 	}
@@ -108,7 +107,7 @@ func main() {
 	})
 }
 
-func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *models.DeploymentData, optsMap map[string][]string) error {
+func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *k8s.DeploymentData, optsMap map[string][]string) error {
 	g := errgroup.Group{}
 	for pName, pPaths := range optsMap {
 		pName := pName
@@ -136,9 +135,9 @@ func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *mod
 func runCheckIntegrity(ctx context.Context,
 	log *logrus.Logger,
 	optsMap map[string][]string,
-	kubeData *models.KubeData,
-	deploymentData *models.DeploymentData,
-	kubeClient *services.KubeClient) error {
+	kubeData *k8s.KubeData,
+	deploymentData *k8s.DeploymentData,
+	kubeClient *k8s.KubeClient) error {
 
 	t := time.NewTicker(viper.GetDuration("duration-time"))
 	for range t.C {
