@@ -21,6 +21,7 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/graceful"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/splunk"
+	syslogclient "github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts/syslog"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/common"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/health"
 )
@@ -55,6 +56,18 @@ func main() {
 	if len(splunkUrl) > 0 && len(splunkToken) > 0 {
 		alertsSender := splunk.New(log, splunkUrl, splunkToken, splunkInsecureSkipVerify)
 		alerts.Register(alertsSender)
+	}
+
+	if viper.GetBool("syslog-enabled") {
+		addr := fmt.Sprintf("%s:%d", viper.GetString("syslog-host"), viper.GetInt("syslog-port"))
+		syslogSender, err := syslogclient.New(log, viper.GetString("syslog-proto"), addr, syslogclient.DefaultPriority)
+		if err != nil {
+			log.Fatalf("cannnot initialize sysylog client %v", err)
+		}
+		alerts.Register(syslogSender)
+		log.Info("notification to syslog enabled")
+
+		defer syslogSender.Close()
 	}
 
 	kubeClient := services.NewKubeService(log)

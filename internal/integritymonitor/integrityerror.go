@@ -15,11 +15,11 @@ type IntegrityError struct {
 func (e *IntegrityError) Error() string {
 	switch e.Type {
 	case ErrTypeNewFile:
-		return "new file found"
+		return IntegrityMessageNewFileFound
 	case ErrTypeFileDeleted:
-		return "file deleted"
+		return IntegrityMessageFileDeleted
 	case ErrTypeFileMismatch:
-		return "file content mismatch"
+		return IntegrityMessageFileMismatch
 	}
-	return "unknown integrity error"
+	return IntegrityMessageUnknownErr
 }

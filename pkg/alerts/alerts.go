@@ -11,6 +11,15 @@ type Alert struct {
 	Path    string
 }
 
+func New(msg, reason, path string) Alert {
+	return Alert{
+		Time:    time.Now(),
+		Message: msg,
+		Reason:  reason,
+		Path:    path,
+	}
+}
+
 type Sender interface {
 	Send(alert Alert) error
 }
