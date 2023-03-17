@@ -2,30 +2,29 @@ package integritymonitor
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
-	"path"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/services"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/repositories/data"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/process"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/walker"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/worker"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
-	"github.com/ScienceSoft-Inc/integrity-sum/pkg/api"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 )
 
 const (
 	IntegrityMessageNewFileFound = "new file found"
 	IntegrityMessageFileDeleted  = "file deleted"
 	IntegrityMessageFileMismatch = "file content mismatch"
+	IntegrityMessageUnknownErr   = "unknown integrity error"
 )
 
 func GetProcessPath(procName string, path string) (string, error) {
@@ -36,7 +35,7 @@ func GetProcessPath(procName string, path string) (string, error) {
 	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
 }
 
-func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger, deploymentData *models.DeploymentData) error {
+func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger, deploymentData *k8s.DeploymentData) error {
 	log.Debug("begin setup integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -44,14 +43,9 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	errC := make(chan error)
 	defer close(errC)
 
-	log.Trace("calculate & save hashes...")
-	select {
-	case <-ctx.Done():
-		log.Error(ctx.Err())
-		return ctx.Err()
-
-	case countHashes := <-saveHashes(
+	saveHahesChan := saveHashes(
 		ctx,
+		log,
 		worker.WorkersPool(
 			viper.GetInt("count-workers"),
 			walker.ChanWalkDir(ctx, monitoringDirectory, log),
@@ -59,7 +53,15 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 		),
 		deploymentData,
 		errC,
-	):
+	)
+
+	log.Trace("calculate & save hashes...")
+	select {
+	case <-ctx.Done():
+		log.Error(ctx.Err())
+		return ctx.Err()
+
+	case countHashes := <-saveHahesChan:
 		log.WithField("countHashes", countHashes).Info("hashes stored successfully")
 		log.Debug("end setup integrity")
 		return nil
@@ -73,9 +75,9 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 func CheckIntegrity(ctx context.Context,
 	log *logrus.Logger,
 	monitoringDirectory string,
-	kubeData *models.KubeData,
-	deploymentData *models.DeploymentData,
-	kubeClient *services.KubeClient) error {
+	kubeData *k8s.KubeData,
+	deploymentData *k8s.DeploymentData,
+	kubeClient *k8s.KubeClient) error {
 	log.Debug("begin check integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -113,8 +115,9 @@ func CheckIntegrity(ctx context.Context,
 
 func saveHashes(
 	ctx context.Context,
+	log *logrus.Logger,
 	hashC <-chan worker.FileHash,
-	dd *models.DeploymentData,
+	dd *k8s.DeploymentData,
 	errC chan<- error,
 ) <-chan int {
 	doneC := make(chan int)
@@ -123,7 +126,7 @@ func saveHashes(
 		defer close(doneC)
 
 		const defaultHashCnt = 100
-		hashData := make([]*api.HashData, 0, defaultHashCnt)
+		hashData := make([]*data.HashData, 0, defaultHashCnt)
 		alg := viper.GetString("algorithm")
 		countHashes := 0
 
@@ -134,17 +137,30 @@ func saveHashes(
 			default:
 			}
 
-			hashData = append(hashData, fileHashToDtoDB(alg, &v))
+			hashData = append(hashData, fileHashToDtoDB(v, alg, dd.NamePod, 0))
 			countHashes++
 		}
 
 		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 		defer cancel()
 
-		query, args := data.NewHashFileData().PrepareBatchQuery(hashData, dd)
-		err := repositories.ExecQueryTx(ctx, query, args...)
+		queryR, argsR := data.NewReleaseData(data.DB().SQL()).PrepareQuery(dd.NameDeployment, dd.Image, "deployment")
+		queryH, argsH := data.NewHashData(data.DB().SQL()).PrepareQuery(hashData, dd.NameDeployment)
+		err := data.WithTx(func(txn *sql.Tx) error {
+			_, err := txn.ExecContext(ctx, queryR, argsR...)
+			if err != nil {
+				return err
+			}
+			_, err = txn.ExecContext(ctx, queryH, argsH...)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+
 		if err != nil {
 			errC <- err
+			return
 		}
 		doneC <- countHashes
 	}()
@@ -158,20 +174,14 @@ func compareHashes(
 	hashC <-chan worker.FileHash,
 	directory string,
 	algName string,
-	deploymentData *models.DeploymentData,
+	deploymentData *k8s.DeploymentData,
 	errC chan<- error,
 ) <-chan int {
 	doneC := make(chan int)
 	go func() {
 		defer close(doneC)
 
-		repository := repositories.NewAppRepository(log, repositories.DB().SQL())
-
-		expectedHashes, err := repository.GetHashData(
-			directory,
-			algName,
-			deploymentData,
-		)
+		expectedHashes, err := data.NewHashData(data.DB().SQL()).Get(algName, directory, deploymentData.NamePod)
 		if err != nil {
 			errC <- fmt.Errorf("failed get hash data: %w", err)
 			return
@@ -180,7 +190,7 @@ func compareHashes(
 		//convert hashes to map
 		expectedHashesMap := make(map[string]string)
 		for _, h := range expectedHashes {
-			expectedHashesMap[h.FullFilePath] = h.Hash
+			expectedHashesMap[h.FullFileName] = h.Hash
 		}
 
 		for v := range hashC {
@@ -213,26 +223,24 @@ func compareHashes(
 func integrityCheckFailed(
 	log *logrus.Logger,
 	err error,
-	kubeData *models.KubeData,
-	deploymentData *models.DeploymentData,
-	kubeClient *services.KubeClient,
+	kubeData *k8s.KubeData,
+	deploymentData *k8s.DeploymentData,
+	kubeClient *k8s.KubeClient,
 ) {
 	l := log.WithError(err)
-	var path string
+	var mPath string
 	var integrityError *IntegrityError
 	if errors.As(err, &integrityError) {
-		path = integrityError.Path
+		mPath = integrityError.Path
 		l = l.WithField("path", integrityError.Path)
 	}
 
 	l.Error("check integrity failed")
 
-	e := alerts.Send(alerts.Alert{
-		Time:    time.Now(),
-		Message: fmt.Sprintf("Restart pod %v", deploymentData.NamePod),
-		Reason:  err.Error(),
-		Path:    path,
-	})
+	e := alerts.Send(alerts.New(fmt.Sprintf("Restart pod %v", deploymentData.NamePod),
+		err.Error(),
+		mPath,
+	))
 	if e != nil {
 		log.WithError(e).Error("Failed send alert")
 	}
@@ -240,12 +248,13 @@ func integrityCheckFailed(
 	kubeClient.RestartPod(kubeData)
 }
 
-func fileHashToDtoDB(algName string, fh *worker.FileHash) *api.HashData {
-	return &api.HashData{
+func fileHashToDtoDB(fh worker.FileHash, algName string, podName string, releaseId int) *data.HashData {
+	return &data.HashData{
 		Hash:         fh.Hash,
-		FileName:     path.Base(fh.Path),
-		FullFilePath: fh.Path,
+		FullFileName: fh.Path,
 		Algorithm:    algName,
+		PodName:      podName,
+		ReleaseId:    releaseId,
 	}
 }
 

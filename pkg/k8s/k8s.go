@@ -1,4 +1,4 @@
-package services
+package k8s
 
 import (
 	"context"
@@ -7,11 +7,39 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
 	"os"
 	"strings"
-
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/core/models"
 )
+
+//go:generate mockgen -source=k8s.go -destination=mocks/mock_k8s.go
+
+type IKuberService interface {
+	Connect() (*kubernetes.Clientset, error)
+	GetDataFromK8sAPI() (*DataFromK8sAPI, error)
+	GetKubeData() (*KubeData, error)
+	GetDataFromDeployment(kuberData *KubeData) (*DeploymentData, error)
+	RolloutDeployment(kuberData *KubeData) error
+}
+
+type KubeData struct {
+	Namespace  string
+	TargetName string
+	TargetType string
+}
+
+type DeploymentData struct {
+	Image          string
+	NamePod        string
+	Timestamp      string
+	NameDeployment string
+	ReleaseName    string
+}
+
+type DataFromK8sAPI struct {
+	KubeData       *KubeData
+	DeploymentData *DeploymentData
+}
 
 type KubeClient struct {
 	logger    *logrus.Logger
@@ -26,37 +54,33 @@ func NewKubeService(logger *logrus.Logger) *KubeClient {
 }
 
 // Connect to Kubernetes API
-func (ks *KubeClient) Connect() (*kubernetes.Clientset, error) {
-	if ks.clientset != nil {
-		return ks.clientset, nil
-	}
-
+func (ks *KubeClient) Connect() error {
 	ks.logger.Info("### 🌀 Attempting to use in cluster config")
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		ks.logger.Error(err)
-		return nil, err
+		return err
 	}
 
 	ks.logger.Info("### 💻 Connecting to Kubernetes API, using host: ", config.Host)
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		ks.logger.Error(err)
-		return nil, err
+		return err
 	}
-
 	ks.clientset = clientset
 
-	return clientset, nil
+	return nil
 }
 
 // GetDataFromK8sAPI returns data from deployment
-func (ks *KubeClient) GetDataFromK8sAPI() (*models.DataFromK8sAPI, error) {
+func (ks *KubeClient) GetDataFromK8sAPI() (*DataFromK8sAPI, error) {
 	kubeData, err := ks.GetKubeData()
 	if err != nil {
 		ks.logger.Errorf("can't connect to K8sAPI: %s", err)
 		return nil, err
 	}
+
 	deploymentData, err := ks.GetDataFromDeployment(kubeData)
 	if err != nil {
 		ks.logger.Errorf("error while getting data from kuberAPI %s", err)
@@ -65,10 +89,10 @@ func (ks *KubeClient) GetDataFromK8sAPI() (*models.DataFromK8sAPI, error) {
 
 	if err != nil {
 		ks.logger.Errorf("err while getting data from configMap K8sAPI %s", err)
-		return &models.DataFromK8sAPI{}, err
+		return &DataFromK8sAPI{}, err
 	}
 
-	dataFromK8sAPI := &models.DataFromK8sAPI{
+	dataFromK8sAPI := &DataFromK8sAPI{
 		KubeData:       kubeData,
 		DeploymentData: deploymentData,
 	}
@@ -77,7 +101,7 @@ func (ks *KubeClient) GetDataFromK8sAPI() (*models.DataFromK8sAPI, error) {
 }
 
 // GetKubeData returns kubeData
-func (ks *KubeClient) GetKubeData() (*models.KubeData, error) {
+func (ks *KubeClient) GetKubeData() (*KubeData, error) {
 	namespaceBytes, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		ks.logger.Error(err)
@@ -96,7 +120,7 @@ func (ks *KubeClient) GetKubeData() (*models.KubeData, error) {
 		ks.logger.Fatalln("### 💥 Env var DEPLOYMENT_NAME was not set")
 	}
 	targetType := os.Getenv("DEPLOYMENT_TYPE")
-	kubeData := &models.KubeData{
+	kubeData := &KubeData{
 		Namespace:  namespace,
 		TargetName: targetName,
 		TargetType: targetType,
@@ -105,14 +129,19 @@ func (ks *KubeClient) GetKubeData() (*models.KubeData, error) {
 }
 
 // GetDataFromDeployment returns data from deployment
-func (ks *KubeClient) GetDataFromDeployment(kubeData *models.KubeData) (*models.DeploymentData, error) {
-	allDeploymentData, err := ks.clientset.AppsV1().Deployments(kubeData.Namespace).Get(context.Background(), kubeData.TargetName, metav1.GetOptions{})
+func (ks *KubeClient) GetDataFromDeployment(kubeData *KubeData) (*DeploymentData, error) {
+	allDeploymentData, err := ks.clientset.AppsV1().Deployments(kubeData.Namespace).Get(
+		context.Background(),
+		kubeData.TargetName,
+		metav1.GetOptions{},
+	)
+
 	if err != nil {
 		ks.logger.Error("err while getting data from kuberAPI ", err)
 		return nil, err
 	}
 
-	deploymentData := &models.DeploymentData{
+	deploymentData := &DeploymentData{
 		NamePod:        os.Getenv("POD_NAME"),
 		Timestamp:      fmt.Sprintf("%v", allDeploymentData.CreationTimestamp),
 		NameDeployment: kubeData.TargetName,
@@ -130,7 +159,7 @@ func (ks *KubeClient) GetDataFromDeployment(kubeData *models.KubeData) (*models.
 }
 
 // RestartPod restarts pod
-func (ks *KubeClient) RestartPod(kubeData *models.KubeData) error {
+func (ks *KubeClient) RestartPod() error {
 	// TODO: maybe get from deploymentData
 	pName := os.Getenv("POD_NAME")
 	pNamespace := os.Getenv("POD_NAMESPACE")
