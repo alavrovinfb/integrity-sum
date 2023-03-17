@@ -41,13 +41,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	errC := make(chan error)
 	defer close(errC)
 
-	log.Trace("calculate & save hashes...")
-	select {
-	case <-ctx.Done():
-		log.Error(ctx.Err())
-		return ctx.Err()
-
-	case countHashes := <-saveHashes(
+	saveHahesChan := saveHashes(
 		ctx,
 		log,
 		worker.WorkersPool(
@@ -57,7 +51,15 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 		),
 		deploymentData,
 		errC,
-	):
+	)
+
+	log.Trace("calculate & save hashes...")
+	select {
+	case <-ctx.Done():
+		log.Error(ctx.Err())
+		return ctx.Err()
+
+	case countHashes := <-saveHahesChan:
 		log.WithField("countHashes", countHashes).Info("hashes stored successfully")
 		log.Debug("end setup integrity")
 		return nil
@@ -156,6 +158,7 @@ func saveHashes(
 
 		if err != nil {
 			errC <- err
+			return
 		}
 		doneC <- countHashes
 	}()

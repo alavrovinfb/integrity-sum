@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS releases (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(256) NOT NULL,
+    name VARCHAR(256) NOT NULL UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     release_type VARCHAR(32) NOT NULL,
@@ -17,5 +17,5 @@ CREATE TABLE IF NOT EXISTS filehashes (
     FOREIGN KEY (release_id) REFERENCES releases (id) ON DELETE CASCADE
 );
 
-CREATE INDEX filehashes_release_name ON releases (name);
+-- CREATE UNIQUE INDEX filehashes_release_name ON releases (name);
 CREATE INDEX filehashes_release_id ON filehashes (release_id);

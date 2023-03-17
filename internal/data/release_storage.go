@@ -24,10 +24,9 @@ func NewReleaseData(db *sql.DB) *ReleaseStorage {
 }
 
 // PrepareQuery creates a query and a set of arguments for preparing data for insertion into the database
-func (rs ReleaseStorage) PrepareQuery(releaseName, imageName string, resourceType string) (string, []any) {
+func (rs ReleaseStorage) PrepareQuery(releaseName string, imageName string, resourceType string) (string, []any) {
 	args := make([]any, 0)
-
-	query := `INSERT INTO releases (name, created_at, updated_at, release_type, image) VALUES($1,$2,$3,$4,$5);`
+	query := `INSERT INTO releases (name, created_at, updated_at, release_type, image) VALUES($1,$2,$3,$4,$5) ON CONFLICT (name) DO NOTHING;`
 	args = append(args,
 		releaseName,
 		time.Now(),
