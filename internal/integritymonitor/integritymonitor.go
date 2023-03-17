@@ -245,7 +245,7 @@ func integrityCheckFailed(
 		log.WithError(e).Error("Failed send alert")
 	}
 
-	kubeClient.RestartPod(kubeData)
+	kubeClient.RestartPod()
 }
 
 func fileHashToDtoDB(fh worker.FileHash, algName string, podName string, releaseId int) *data.HashData {
