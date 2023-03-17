@@ -49,12 +49,16 @@ func main() {
 	}
 
 	// 	// Create alert sender
-	splunkUrl := viper.GetString("splunk-url")
-	splunkToken := viper.GetString("splunk-token")
-	splunkInsecureSkipVerify := viper.GetBool("splunk-insecure-skip-verify")
-	if len(splunkUrl) > 0 && len(splunkToken) > 0 {
-		alertsSender := splunk.New(log, splunkUrl, splunkToken, splunkInsecureSkipVerify)
-		alerts.Register(alertsSender)
+	if viper.GetBool("splunk-enabled") {
+		splunkUrl := viper.GetString("splunk-url")
+		splunkToken := viper.GetString("splunk-token")
+		splunkInsecureSkipVerify := viper.GetBool("splunk-insecure-skip-verify")
+		if len(splunkUrl) > 0 && len(splunkToken) > 0 {
+			alertsSender := splunk.New(log, splunkUrl, splunkToken, splunkInsecureSkipVerify)
+			alerts.Register(alertsSender)
+		} else {
+			log.Info("splunk URL or Token is missed splunk support disabled")
+		}
 	}
 
 	if viper.GetBool("syslog-enabled") {

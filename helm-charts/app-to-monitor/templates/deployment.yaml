@@ -67,9 +67,12 @@ spec:
             - --db-port={{ .Values.db.port }}
             - --db-name={{ .Values.db.database }}
             - --db-user={{ .Values.db.username }}
+            {{- if .Values.configMap.splunk.enabled }}
+            - --splunk-enabled={{ .Values.configMap.splunk.enabled }}
             - --splunk-url={{ .Values.configMap.splunkUrl }}
             - --splunk-token={{ .Values.configMap.splunkToken }}
             - --splunk-insecure-skip-verify={{ .Values.configMap.splunkInsecureSkipVerify }}
+            {{- end }}
             {{- if .Values.configMap.syslog.enabled }}
             - --syslog-enabled={{ .Values.configMap.syslog.enabled }}
             - --syslog-host={{ .Values.configMap.syslog.host }}
@@ -78,7 +81,7 @@ spec:
             {{- end }}
             {{- if .Values.minio.enabled }}
             - --minio-enabled={{ .Values.minio.enabled }}
-            - --minio-host={{ .Values.minio.server.host }}:{{ .Values.minio.server.port }}
+            - --minio-host='{{ .Values.minio.server.host }}:{{ .Values.minio.server.port }}'
             {{- end }}
           resources:
             limits:

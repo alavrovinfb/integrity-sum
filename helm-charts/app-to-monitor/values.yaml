@@ -26,8 +26,10 @@ configMap:
   mountPaths: # Paths to monitoring
     - etc/nginx
     - usr/bin
-  splunkUrl: "" # url to send events https://splunk:8088/services/collector/event
-  splunkToken: ""
+  splunk:
+    enabled: false
+    splunkUrl: "" # url to send events https://splunk:8088/services/collector/event
+    splunkToken: ""
   splunkInsecureSkipVerify: true
   syslog:
     enabled: false
