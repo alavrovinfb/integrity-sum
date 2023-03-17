@@ -9,7 +9,6 @@ import (
 
 	k8s "github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 	gomock "github.com/golang/mock/gomock"
-	kubernetes "k8s.io/client-go/kubernetes"
 )
 
 // MockIKuberService is a mock of IKuberService interface.
@@ -36,12 +35,11 @@ func (m *MockIKuberService) EXPECT() *MockIKuberServiceMockRecorder {
 }
 
 // Connect mocks base method.
-func (m *MockIKuberService) Connect() (*kubernetes.Clientset, error) {
+func (m *MockIKuberService) Connect() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Connect")
-	ret0, _ := ret[0].(*kubernetes.Clientset)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Connect indicates an expected call of Connect.
@@ -51,18 +49,18 @@ func (mr *MockIKuberServiceMockRecorder) Connect() *gomock.Call {
 }
 
 // GetDataFromDeployment mocks base method.
-func (m *MockIKuberService) GetDataFromDeployment(kuberData *k8s.KubeData) (*k8s.DeploymentData, error) {
+func (m *MockIKuberService) GetDataFromDeployment() (*k8s.DeploymentData, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDataFromDeployment", kuberData)
+	ret := m.ctrl.Call(m, "GetDataFromDeployment")
 	ret0, _ := ret[0].(*k8s.DeploymentData)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetDataFromDeployment indicates an expected call of GetDataFromDeployment.
-func (mr *MockIKuberServiceMockRecorder) GetDataFromDeployment(kuberData interface{}) *gomock.Call {
+func (mr *MockIKuberServiceMockRecorder) GetDataFromDeployment() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataFromDeployment", reflect.TypeOf((*MockIKuberService)(nil).GetDataFromDeployment), kuberData)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataFromDeployment", reflect.TypeOf((*MockIKuberService)(nil).GetDataFromDeployment))
 }
 
 // GetDataFromK8sAPI mocks base method.
@@ -80,31 +78,16 @@ func (mr *MockIKuberServiceMockRecorder) GetDataFromK8sAPI() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataFromK8sAPI", reflect.TypeOf((*MockIKuberService)(nil).GetDataFromK8sAPI))
 }
 
-// GetKubeData mocks base method.
-func (m *MockIKuberService) GetKubeData() (*k8s.KubeData, error) {
+// RestartPod mocks base method.
+func (m *MockIKuberService) RestartPod() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetKubeData")
-	ret0, _ := ret[0].(*k8s.KubeData)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetKubeData indicates an expected call of GetKubeData.
-func (mr *MockIKuberServiceMockRecorder) GetKubeData() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKubeData", reflect.TypeOf((*MockIKuberService)(nil).GetKubeData))
-}
-
-// RolloutDeployment mocks base method.
-func (m *MockIKuberService) RolloutDeployment(kuberData *k8s.KubeData) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RolloutDeployment", kuberData)
+	ret := m.ctrl.Call(m, "RestartPod")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// RolloutDeployment indicates an expected call of RolloutDeployment.
-func (mr *MockIKuberServiceMockRecorder) RolloutDeployment(kuberData interface{}) *gomock.Call {
+// RestartPod indicates an expected call of RestartPod.
+func (mr *MockIKuberServiceMockRecorder) RestartPod() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RolloutDeployment", reflect.TypeOf((*MockIKuberService)(nil).RolloutDeployment), kuberData)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestartPod", reflect.TypeOf((*MockIKuberService)(nil).RestartPod))
 }

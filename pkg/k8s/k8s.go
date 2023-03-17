@@ -3,11 +3,12 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-
 	"os"
 	"strings"
 )
@@ -15,17 +16,18 @@ import (
 //go:generate mockgen -source=k8s.go -destination=mocks/mock_k8s.go
 
 type IKuberService interface {
-	Connect() (*kubernetes.Clientset, error)
+	Connect() error
 	GetDataFromK8sAPI() (*DataFromK8sAPI, error)
-	GetKubeData() (*KubeData, error)
-	GetDataFromDeployment(kuberData *KubeData) (*DeploymentData, error)
-	RolloutDeployment(kuberData *KubeData) error
+	GetDataFromDeployment() (*DeploymentData, error)
+	RestartPod() error
 }
 
 type KubeData struct {
-	Namespace  string
-	TargetName string
-	TargetType string
+	Namespace    string
+	TargetName   string
+	TargetType   string
+	PodName      string
+	PodNamespace string
 }
 
 type DeploymentData struct {
@@ -36,6 +38,7 @@ type DeploymentData struct {
 	ReleaseName    string
 }
 
+// TODO: seems like this struct is not needed
 type DataFromK8sAPI struct {
 	KubeData       *KubeData
 	DeploymentData *DeploymentData
@@ -44,6 +47,44 @@ type DataFromK8sAPI struct {
 type KubeClient struct {
 	logger    *logrus.Logger
 	clientset *kubernetes.Clientset
+}
+
+var kubeData *KubeData
+
+func init() {
+	initKubeData()
+}
+
+// initKubeData initializes kubeData global variable
+func initKubeData() {
+	log := logger.Init(viper.GetString("verbose"))
+	namespaceBytes, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		log.Error(err)
+	}
+	namespace := string(namespaceBytes)
+	podName := os.Getenv("POD_NAME")
+
+	targetName := func(podName string) string {
+		elements := strings.Split(podName, "-")
+		newElements := elements[:len(elements)-2]
+		return strings.Join(newElements, "-")
+	}(podName)
+	if targetName == "" {
+		log.Fatalln("### 💥 Env var DEPLOYMENT_NAME was not set")
+	}
+
+	targetType := os.Getenv("DEPLOYMENT_TYPE")
+	pName := os.Getenv("POD_NAME")
+	pNamespace := os.Getenv("POD_NAMESPACE")
+
+	kubeData = &KubeData{
+		Namespace:    namespace,
+		TargetName:   targetName,
+		TargetType:   targetType,
+		PodName:      pName,
+		PodNamespace: pNamespace,
+	}
 }
 
 // NewKubeService creates a new service for working with the Kubernetes API
@@ -74,14 +115,15 @@ func (ks *KubeClient) Connect() error {
 }
 
 // GetDataFromK8sAPI returns data from deployment
+// TODO: seems like it's not used
 func (ks *KubeClient) GetDataFromK8sAPI() (*DataFromK8sAPI, error) {
-	kubeData, err := ks.GetKubeData()
-	if err != nil {
-		ks.logger.Errorf("can't connect to K8sAPI: %s", err)
-		return nil, err
-	}
+	//kubeData, err := ks.GetKubeData()
+	//if err != nil {
+	//	ks.logger.Errorf("can't connect to K8sAPI: %s", err)
+	//	return nil, err
+	//}
 
-	deploymentData, err := ks.GetDataFromDeployment(kubeData)
+	deploymentData, err := ks.GetDataFromDeployment()
 	if err != nil {
 		ks.logger.Errorf("error while getting data from kuberAPI %s", err)
 		return nil, err
@@ -100,36 +142,8 @@ func (ks *KubeClient) GetDataFromK8sAPI() (*DataFromK8sAPI, error) {
 	return dataFromK8sAPI, nil
 }
 
-// GetKubeData returns kubeData
-func (ks *KubeClient) GetKubeData() (*KubeData, error) {
-	namespaceBytes, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-	if err != nil {
-		ks.logger.Error(err)
-		return nil, err
-	}
-	namespace := string(namespaceBytes)
-
-	podName := os.Getenv("POD_NAME")
-
-	targetName := func(podName string) string {
-		elements := strings.Split(podName, "-")
-		newElements := elements[:len(elements)-2]
-		return strings.Join(newElements, "-")
-	}(podName)
-	if targetName == "" {
-		ks.logger.Fatalln("### 💥 Env var DEPLOYMENT_NAME was not set")
-	}
-	targetType := os.Getenv("DEPLOYMENT_TYPE")
-	kubeData := &KubeData{
-		Namespace:  namespace,
-		TargetName: targetName,
-		TargetType: targetType,
-	}
-	return kubeData, nil
-}
-
 // GetDataFromDeployment returns data from deployment
-func (ks *KubeClient) GetDataFromDeployment(kubeData *KubeData) (*DeploymentData, error) {
+func (ks *KubeClient) GetDataFromDeployment() (*DeploymentData, error) {
 	allDeploymentData, err := ks.clientset.AppsV1().Deployments(kubeData.Namespace).Get(
 		context.Background(),
 		kubeData.TargetName,
@@ -142,7 +156,7 @@ func (ks *KubeClient) GetDataFromDeployment(kubeData *KubeData) (*DeploymentData
 	}
 
 	deploymentData := &DeploymentData{
-		NamePod:        os.Getenv("POD_NAME"),
+		NamePod:        kubeData.PodName,
 		Timestamp:      fmt.Sprintf("%v", allDeploymentData.CreationTimestamp),
 		NameDeployment: kubeData.TargetName,
 	}
@@ -160,18 +174,14 @@ func (ks *KubeClient) GetDataFromDeployment(kubeData *KubeData) (*DeploymentData
 
 // RestartPod restarts pod
 func (ks *KubeClient) RestartPod() error {
-	// TODO: maybe get from deploymentData
-	pName := os.Getenv("POD_NAME")
-	pNamespace := os.Getenv("POD_NAMESPACE")
-
 	// Deleting pod to force a restart
-	err := ks.clientset.CoreV1().Pods(pNamespace).Delete(context.Background(), pName, metav1.DeleteOptions{})
+	err := ks.clientset.CoreV1().Pods(kubeData.PodNamespace).Delete(context.Background(), kubeData.PodName, metav1.DeleteOptions{})
 
 	if err != nil {
-		ks.logger.Printf("### 👎 Warning: Failed to delete pod %v, restart failed: %v", pName, err)
+		ks.logger.Printf("### 👎 Warning: Failed to delete pod %v, restart failed: %v", kubeData.PodName, err)
 		return err
 	}
 
-	ks.logger.Printf("### ✅ Pod %v was forced to be restartd", pName)
+	ks.logger.Printf("### ✅ Pod %v was forced to be restartd", kubeData.PodName)
 	return nil
 }

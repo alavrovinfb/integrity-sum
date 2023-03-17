@@ -75,7 +75,6 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 func CheckIntegrity(ctx context.Context,
 	log *logrus.Logger,
 	monitoringDirectory string,
-	kubeData *k8s.KubeData,
 	deploymentData *k8s.DeploymentData,
 	kubeClient *k8s.KubeClient) error {
 	log.Debug("begin check integrity")
@@ -108,7 +107,7 @@ func CheckIntegrity(ctx context.Context,
 		log.WithField("countHashes", countHashes).Info("hashes compared successfully")
 		return nil
 	case err := <-errC:
-		integrityCheckFailed(log, err, kubeData, deploymentData, kubeClient)
+		integrityCheckFailed(log, err, deploymentData, kubeClient)
 		return err
 	}
 }
@@ -223,7 +222,6 @@ func compareHashes(
 func integrityCheckFailed(
 	log *logrus.Logger,
 	err error,
-	kubeData *k8s.KubeData,
 	deploymentData *k8s.DeploymentData,
 	kubeClient *k8s.KubeClient,
 ) {
