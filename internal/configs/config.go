@@ -77,6 +77,7 @@ func init() {
 	viper.BindEnv("db-threshold-timeout", "DB_THRESHOLD_TIMEOUT")
 
 	fsSp := pflag.NewFlagSet("splunk", pflag.ContinueOnError)
+	fsSp.Bool("splunk-enabled", false, "Enable splunk alerts")
 	fsSp.String("splunk-url", "", "Splunk HTTP Events Collector URL")
 	fsSp.String("splunk-token", "", "Splunk HTTP Events Collector Token")
 	fsSp.Bool("splunk-insecure-skip-verify", false, "Splunk HTTP Events Collector URL skip certificate verification")
@@ -85,12 +86,13 @@ func init() {
 		fmt.Printf("error binding flags: %v", err)
 		os.Exit(1)
 	}
+	viper.BindEnv("splunk-enabled", "SPLUNK_ENABLED")
 	viper.BindEnv("splunk-url", "SPLUNK_URL")
 	viper.BindEnv("splunk-token", "SPLUNK_TOKEN")
 	viper.BindEnv("splunk-insecure-skip-verify", "SPLUNK_INSECURE_SKIP_VERIFY")
 
 	fsSys := pflag.NewFlagSet("syslog", pflag.ContinueOnError)
-	fsSys.Bool("syslog-enabled", false, "Enable syslog")
+	fsSys.Bool("syslog-enabled", false, "Enable syslog alerts")
 	fsSys.String("syslog-host", "localhost", "Syslog server host")
 	fsSys.Int("syslog-port", 514, "Syslog server port default 514")
 	fsSys.String("syslog-proto", "tcp", "Syslog communication protocol, possible options tcp/udp, default tcp")
