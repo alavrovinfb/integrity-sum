@@ -78,7 +78,7 @@ generate:
 
 ## Runs the test suite with mocks enabled.
 .PHONY: test
-test: generate test-bee2
+test: generate test-bee2 tminio
 	@$(GOTEST) -timeout 5s ./internal/core/services \
 	 	./pkg/hasher \
 		./internal/walker \
@@ -89,6 +89,10 @@ test-bee2:
 ifeq ($(BEE2_ENABLED), true)
 	@$(GOTEST) -tags bee2 ./internal/ffi/bee2
 endif
+
+.PHONY: tminio
+tminio:
+	go test -v -timeout 20s ./pkg/minio
 
 ## Downloads the necessesary dev dependencies.
 .PHONY : dev-dependencies
