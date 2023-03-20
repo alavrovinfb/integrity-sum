@@ -75,14 +75,13 @@ func initKubeData() {
 	}
 
 	targetType := os.Getenv("DEPLOYMENT_TYPE")
-	pName := os.Getenv("POD_NAME")
 	pNamespace := os.Getenv("POD_NAMESPACE")
 
 	kubeData = &KubeData{
 		Namespace:    namespace,
 		TargetName:   targetName,
 		TargetType:   targetType,
-		PodName:      pName,
+		PodName:      podName,
 		PodNamespace: pNamespace,
 	}
 }
