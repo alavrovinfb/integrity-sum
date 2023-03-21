@@ -132,54 +132,6 @@ There are some predefined targets in the Makefile for deployment:
     ```
     make helm-database
     ```
-In order to enable syslog functionality following flags should be set:
-- --syslog-enabled=true
-- --syslog-host=syslog.host
-- --syslog-port=syslog.port default 514
-- --syslog-proto=syslog protocol default TCP
-
-It cloud be done either through deployment or by integrity injector
-
-- Install rsyslog server
-Set `SYSLOG_ENABLED` ENV to true then run:
-    ```
-    make helm-syslog
-    ```
-- Integrity monitor Syslog message format
-Syslog message format conforms to rfc3164 https://www.ietf.org/rfc/rfc3164.txt
-e.g.
-```
-<PRI> TIMESTAMP HOSTNAME TAG time=<event timestamp> event-type=<00001> service=<service name> namespace=<namespace name> cluster=<cluster name> message=<event message> file=<changed file name> reason=<event reason>\n`
-```
-- PRI - message priority, always 28 (LOG_WARNING | LOG_DAEMON)
-- TIMESTAMP - time stamp format  "Jan _2 15:04:05"
-- HOSTNAME - host/pod name
-- TAG - process name with pid e.g. integrity-monitor[2]:
-
-USER message consists from key=value pairs
-
-- time=< event timestamp > , time stamp format  "Jan _2 15:04:05"
-- event-type=<00001> 
-- `00001` - "file content mismatch"
-- `00002` - "new file found"
-- `00003` - "file deleted"
-- service=<service name>, monitoring service name e.g. `service=nginx`
-- namespace=<namespace name>, pod namespace
-- cluster=<cluster name>, service cluster name
-- message=<event message>, e.g. `message=Restart deployment`
-- file=<changed file name>, full file name with changes detected 
-- reason=<event reason>, restart reason e.g.:
-- `file content mismatch`
-- `new file found`
-- `file deleted`
-
-Message examples from syslog:
-```
-Mar 20 13:56:17 nginx-webhook-c74fc7b97-92n7k integrity-monitor[69]: time=Mar 20 13:56:17 event-type=0001 service=nginx namespace=default cluster=dev message=Restart deployment nginx-webhook file=/proc/46/root/etc/nginx/nginx.conf reason=file content mismatch
-Mar 20 14:08:50 nginx-webhook-755ff64f94-5bclh integrity-monitor[47]: time=Mar 20 14:08:50 event-type=0001 service=nginx namespace=default cluster=dev message=Restart deployment nginx-webhook file=/proc/46/root/etc/nginx/qqqqq reason=new file found
-Mar 20 14:10:23 nginx-webhook-86f7cf989c-5pszt integrity-monitor[47]: time=Mar 20 14:10:23 event-type=0001 service=nginx namespace=default cluster=dev message=Restart deployment nginx-webhook file=/proc/46/root/etc/nginx/nginx.conf reason=file deleted
-```
-Note: <PRI> - is not shown up in /var/log/syslog
 
 - Install helm chart with app
     ```
@@ -265,7 +217,7 @@ Find more details about bee2 tools in the [Readme](internal/ffi/bee2/Readme.md).
 
 The code was tested with default `bitnami/minio` helm chart.
 
-### Instal standalone server
+### Install standalone server
 
 The following code will create the `minio` namespace and install a default MinIO server into it.
 
@@ -279,6 +231,73 @@ Refer to the original documentation [Bitnami Object Storage based on MinIO®](ht
 ### Include into the project
 
 To enable the MinIO in the project set the `minio.enabled` to `true` in the `helm-charts/app-to-monitor/values.yaml`.
+
+## Syslog support
+
+In order to enable syslog functionality following flags should be set:
+
+- --syslog-enabled=true
+- --syslog-host=syslog.host
+- --syslog-port=syslog.port default 514
+- --syslog-proto=syslog protocol default TCP
+
+It could be done either through deployment or by integrity injector.
+
+To enable syslog support in demo-app:
+
+- Set `SYSLOG_ENABLED` environment variable to `true`
+- Install demo app by running: 
+```
+make helm-app
+``` 
+
+### Install syslog server
+
+Syslog helm chart is included in demo app, to install it following steps should be done:
+
+- Set `SYSLOG_ENABLED` environment variable to `true`
+- Run: ```make helm-syslog```
+
+### Syslog messages format
+
+Syslog message format conforms to rfc3164 https://www.ietf.org/rfc/rfc3164.txt
+e.g.
+
+```
+ <PRI> TIMESTAMP HOSTNAME TAG time=<event timestamp> event-type=<00001> service=<service name> namespace=<namespace name> cluster=<cluster name> message=<event message> file=<changed file name> reason=<event reason>\n`
+```
+
+- PRI - message priority, always 28 (LOG_WARNING | LOG_DAEMON)
+- TIMESTAMP - time stamp format  "Jan _2 15:04:05"
+- HOSTNAME - host/pod name
+- TAG - process name with pid e.g. integrity-monitor[2]:
+
+USER message consists from key=value pairs
+
+- time=\<event timestamp\> , time stamp format  "Jan _2 15:04:05"
+- event-type=\<00001\>
+  - `00001` - "file content mismatch"
+  - `00002` - "new file found"
+  - `00003` - "file deleted"
+- service=\<service name\>, monitoring service name e.g. `service=nginx`
+- namespace=\<namespace name\>, pod namespace
+- cluster=\<cluster name\>, service cluster name
+- message=\<event message\>, e.g. `message=Restart deployment`
+- file=\<changed file name\>, full file name with changes detected
+- reason=\<event reason\>, restart reason e.g.:
+  - `file content mismatch`
+  - `new file found`
+  - `file deleted`
+
+Message examples from syslog:
+
+```log
+Mar 20 13:56:17 nginx-webhook-c74fc7b97-92n7k integrity-monitor[69]: time=Mar 20 13:56:17 event-type=0001 service=nginx namespace=default cluster=dev message=Restart deployment nginx-webhook file=/proc/46/root/etc/nginx/nginx.conf reason=file content mismatch
+Mar 20 14:08:50 nginx-webhook-755ff64f94-5bclh integrity-monitor[47]: time=Mar 20 14:08:50 event-type=0001 service=nginx namespace=default cluster=dev message=Restart deployment nginx-webhook file=/proc/46/root/etc/nginx/qqqqq reason=new file found
+Mar 20 14:10:23 nginx-webhook-86f7cf989c-5pszt integrity-monitor[47]: time=Mar 20 14:10:23 event-type=0001 service=nginx namespace=default cluster=dev message=Restart deployment nginx-webhook file=/proc/46/root/etc/nginx/nginx.conf reason=file deleted
+```
+
+Note: `<PRI>` - is not shown up in syslog server logs.
 
 ## License
 
