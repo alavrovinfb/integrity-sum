@@ -35,7 +35,7 @@ func GetProcessPath(procName string, path string) (string, error) {
 	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
 }
 
-func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger, deploymentData *k8s.DeploymentData) error {
+func SetupIntegrity(ctx context.Context, monitoringDirectories []string, log *logrus.Logger, deploymentData *k8s.DeploymentData) error {
 	log.Debug("begin setup integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -48,7 +48,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 		log,
 		worker.WorkersPool(
 			viper.GetInt("count-workers"),
-			walker.ChanWalkDir(ctx, monitoringDirectory, log),
+			walker.ChanWalkDir(ctx, monitoringDirectories, log),
 			worker.NewWorker(ctx, viper.GetString("algorithm"), log),
 		),
 		deploymentData,
@@ -62,7 +62,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 		return ctx.Err()
 
 	case countHashes := <-saveHahesChan:
-		log.WithField("countHashes", countHashes).Info("hashes stored successfully")
+		log.WithField("countHashes", countHashes).WithField("monitoringDirectories", monitoringDirectories).Info("hashes stored successfully")
 		log.Debug("end setup integrity")
 		return nil
 
@@ -72,12 +72,7 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 	}
 }
 
-func CheckIntegrity(ctx context.Context,
-	log *logrus.Logger,
-	monitoringDirectory string,
-	kubeData *k8s.KubeData,
-	deploymentData *k8s.DeploymentData,
-	kubeClient *k8s.KubeClient) error {
+func CheckIntegrity(ctx context.Context, log *logrus.Logger, monitoringDirectories []string, kubeData *k8s.KubeData, deploymentData *k8s.DeploymentData, kubeClient *k8s.KubeClient) error {
 	log.Debug("begin check integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -90,10 +85,10 @@ func CheckIntegrity(ctx context.Context,
 		log,
 		worker.WorkersPool(
 			viper.GetInt("count-workers"),
-			walker.ChanWalkDir(ctx, monitoringDirectory, log),
+			walker.ChanWalkDir(ctx, monitoringDirectories, log),
 			worker.NewWorker(ctx, viper.GetString("algorithm"), log),
 		),
-		monitoringDirectory,
+		monitoringDirectories[0],
 		viper.GetString("algorithm"),
 		deploymentData,
 		errC,
@@ -180,8 +175,14 @@ func compareHashes(
 	doneC := make(chan int)
 	go func() {
 		defer close(doneC)
+		// TODO update with actual process
+		procDir, err := GetProcessPath("nginx", "")
+		if err != nil {
+			errC <- fmt.Errorf("failed get hash data: %w", err)
+			return
+		}
 
-		expectedHashes, err := data.NewHashData(data.DB().SQL()).Get(algName, directory, deploymentData.NamePod)
+		expectedHashes, err := data.NewHashData(data.DB().SQL()).Get(algName, procDir, deploymentData.NamePod)
 		if err != nil {
 			errC <- fmt.Errorf("failed get hash data: %w", err)
 			return

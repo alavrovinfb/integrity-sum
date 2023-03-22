@@ -66,7 +66,7 @@ func main() {
 func run(ctx context.Context, log *logrus.Logger) {
 	hashesChan := worker.WorkersPool(
 		viper.GetInt("count-workers"),
-		walker.ChanWalkDir(ctx, viper.GetString("dirPath"), log),
+		walker.ChanWalkDir(ctx, []string{viper.GetString("dirPath")}, log),
 		worker.NewWorker(ctx, viper.GetString("algorithm"), log),
 	)
 	for {

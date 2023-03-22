@@ -118,14 +118,17 @@ func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *k8s
 		pName := pName
 		pPaths := pPaths
 		g.Go(func() error {
-			for _, p := range pPaths {
-				processPath, err := integritymonitor.GetProcessPath(pName, p)
+			var err error
+			processPaths := make([]string, len(pPaths))
+			for i, p := range pPaths {
+				processPaths[i], err = integritymonitor.GetProcessPath(pName, p)
 				if err != nil {
 					return err
 				}
-				if err := integritymonitor.SetupIntegrity(ctx, processPath, log, deploymentData); err != nil {
-					return err
-				}
+
+			}
+			if err := integritymonitor.SetupIntegrity(ctx, processPaths, log, deploymentData); err != nil {
+				return err
 			}
 			return nil
 		})
@@ -144,23 +147,28 @@ func runCheckIntegrity(ctx context.Context,
 	deploymentData *k8s.DeploymentData,
 	kubeClient *k8s.KubeClient) error {
 
+	var err error
+
 	t := time.NewTicker(viper.GetDuration("duration-time"))
 	for range t.C {
 		for proc, paths := range optsMap {
-			for _, p := range paths {
-				processPath, err := integritymonitor.GetProcessPath(proc, p)
+			processPaths := make([]string, len(paths))
+			for i, p := range paths {
+				processPaths[i], err = integritymonitor.GetProcessPath(proc, p)
 				if err != nil {
 					log.WithError(err).Error("failed build process path")
 					return err
 				}
-				err = integritymonitor.CheckIntegrity(ctx, log, processPath, kubeData, deploymentData, kubeClient)
-				if err != nil {
-					log.WithError(err).Error("failed check integrity")
-					return err
-				}
+
+			}
+			err = integritymonitor.CheckIntegrity(ctx, log, processPaths, kubeData, deploymentData, kubeClient)
+			if err != nil {
+				log.WithError(err).Error("failed check integrity")
+				return err
 			}
 		}
 	}
+
 	return nil
 }
 
