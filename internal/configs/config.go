@@ -46,6 +46,7 @@ func init() {
 	fsSum.Int("count-workers", runtime.NumCPU(), "number of running workers in the workerpool")
 	fsSum.String("algorithm", algorithm, "hashing algorithm for hashing data")
 	fsSum.String("monitoring-options", monitorOpts, "process name and process paths to monitoring, should be represented as key=value pair. e.g. nginx=/dir1,/dir2")
+	fsSum.StringToString("process-image", map[string]string{}, "mapping process name to image name, should be represented as key=value pair. e.g. nginx=nginx:v1.4,redis=redis:v1.0 ")
 	fsSum.String("cluster-name", clusterName, "Name of cluster where monitor deployed, default local")
 	pflag.CommandLine.AddFlagSet(fsSum)
 	if err := viper.BindPFlags(fsSum); err != nil {

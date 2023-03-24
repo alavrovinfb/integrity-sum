@@ -12,7 +12,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
-	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/integritymonitor"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/logger"
@@ -23,7 +22,7 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/common"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/health"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
-	_ "github.com/ScienceSoft-Inc/integrity-sum/pkg/minio"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/minio"
 )
 
 func main() {
@@ -42,14 +41,19 @@ func main() {
 	defer h.Reset()
 
 	// Install migration
-	DBMigration(log)
+	//DBMigration(log)
 
 	// DB connect
-	if _, err := data.Open(log); err != nil {
-		log.Fatalf("failed connect to database: %w", err)
+	//if _, err := data.Open(log); err != nil {
+	//	log.Fatalf("failed connect to database: %w", err)
+	//}
+
+	minio.MS, err = minio.NewStorage(log)
+	if err != nil {
+		log.Fatalf("failed connect to minio storage: %w", err)
 	}
 
-	// 	// Create alert sender
+	// Create alert sender
 	if viper.GetBool("splunk-enabled") {
 		splunkUrl := viper.GetString("splunk-url")
 		splunkToken := viper.GetString("splunk-token")
@@ -95,10 +99,10 @@ func main() {
 
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), log, func(ctx context.Context) {
-		if err = setupIntegrity(ctx, log, deploymentData, optsMap); err != nil {
-			log.WithError(err).Fatal("failed to setup integrity")
-			return
-		}
+		//if err = setupIntegrity(ctx, log, deploymentData, optsMap); err != nil {
+		//	log.WithError(err).Fatal("failed to setup integrity")
+		//	return
+		//}
 
 		err := runCheckIntegrity(ctx, log, optsMap, kubeData, deploymentData, kubeClient)
 		if err == context.Canceled {
@@ -152,16 +156,16 @@ func runCheckIntegrity(ctx context.Context,
 	t := time.NewTicker(viper.GetDuration("duration-time"))
 	for range t.C {
 		for proc, paths := range optsMap {
-			processPaths := make([]string, len(paths))
-			for i, p := range paths {
-				processPaths[i], err = integritymonitor.GetProcessPath(proc, p)
-				if err != nil {
-					log.WithError(err).Error("failed build process path")
-					return err
-				}
-
-			}
-			err = integritymonitor.CheckIntegrity(ctx, log, processPaths, kubeData, deploymentData, kubeClient)
+			//processPaths := make([]string, len(paths))
+			//for i, p := range paths {
+			//	processPaths[i], err = integritymonitor.GetProcessPath(proc, p)
+			//	if err != nil {
+			//		log.WithError(err).Error("failed build process path")
+			//		return err
+			//	}
+			//
+			//}
+			err = integritymonitor.CheckIntegrity(ctx, log, proc, paths, kubeData, deploymentData, kubeClient)
 			if err != nil {
 				log.WithError(err).Error("failed check integrity")
 				return err

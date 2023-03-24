@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"sync"
 
@@ -41,6 +41,8 @@ func init() {
 		os.Exit(1)
 	}
 }
+
+var MS *Storage
 
 // NewMinIOClient returns the MinIO client
 func NewMinIOClient(host string, log *logrus.Logger) (*minio.Client, error) {
@@ -135,7 +137,7 @@ func (s *Storage) Load(ctx context.Context, bucketName, objectName string) ([]by
 		"objectName": info.Key,
 		"size":       info.Size,
 	}).Debug("loaded successfully")
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }
 
 // CreateBucketIfNotExists creates a new bucket with the given @bucketName if it
@@ -164,4 +166,8 @@ func (s *Storage) CreateBucketIfNotExists(ctx context.Context, bucketName string
 // ListBuckets returns a list of all buckets in the MinIO server
 func (s *Storage) ListBuckets(ctx context.Context) ([]minio.BucketInfo, error) {
 	return s.client.ListBuckets(ctx)
+}
+
+func GetMinioStorage() *Storage {
+	return MS
 }

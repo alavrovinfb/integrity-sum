@@ -1,6 +1,7 @@
 package integritymonitor
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -18,6 +19,7 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/worker"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/minio"
 )
 
 const (
@@ -43,17 +45,11 @@ func SetupIntegrity(ctx context.Context, monitoringDirectories []string, log *lo
 	errC := make(chan error)
 	defer close(errC)
 
-	saveHahesChan := saveHashes(
-		ctx,
-		log,
-		worker.WorkersPool(
-			viper.GetInt("count-workers"),
-			walker.ChanWalkDir(ctx, monitoringDirectories, log),
-			worker.NewWorker(ctx, viper.GetString("algorithm"), log),
-		),
-		deploymentData,
-		errC,
-	)
+	saveHahesChan := saveHashes(ctx, worker.WorkersPool(
+		viper.GetInt("count-workers"),
+		walker.ChanWalkDir(ctx, monitoringDirectories, log),
+		worker.NewWorker(ctx, viper.GetString("algorithm"), log),
+	), deploymentData, errC)
 
 	log.Trace("calculate & save hashes...")
 	select {
@@ -72,7 +68,8 @@ func SetupIntegrity(ctx context.Context, monitoringDirectories []string, log *lo
 	}
 }
 
-func CheckIntegrity(ctx context.Context, log *logrus.Logger, monitoringDirectories []string, kubeData *k8s.KubeData, deploymentData *k8s.DeploymentData, kubeClient *k8s.KubeClient) error {
+func CheckIntegrity(ctx context.Context, log *logrus.Logger, processName string, monitoringDirectories []string,
+	kubeData *k8s.KubeData, deploymentData *k8s.DeploymentData, kubeClient *k8s.KubeClient) error {
 	log.Debug("begin check integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -80,19 +77,22 @@ func CheckIntegrity(ctx context.Context, log *logrus.Logger, monitoringDirectori
 	errC := make(chan error)
 	defer close(errC)
 
-	comparedHashesChan := compareHashes(
-		ctx,
-		log,
-		worker.WorkersPool(
-			viper.GetInt("count-workers"),
-			walker.ChanWalkDir(ctx, monitoringDirectories, log),
-			worker.NewWorker(ctx, viper.GetString("algorithm"), log),
-		),
-		monitoringDirectories[0],
-		viper.GetString("algorithm"),
-		deploymentData,
-		errC,
-	)
+	var err error
+	paths := make([]string, len(monitoringDirectories))
+	for i, p := range monitoringDirectories {
+		paths[i], err = GetProcessPath(processName, p)
+		if err != nil {
+			log.WithError(err).Error("failed build process path")
+			return err
+		}
+
+	}
+
+	comparedHashesChan := compareHashes(ctx, log, worker.WorkersPool(
+		viper.GetInt("count-workers"),
+		walker.ChanWalkDir(ctx, paths, log),
+		worker.NewWorker(ctx, viper.GetString("algorithm"), log),
+	), processName, viper.GetString("algorithm"), deploymentData, errC)
 
 	log.Trace("calculate & save hashes...")
 	select {
@@ -108,13 +108,7 @@ func CheckIntegrity(ctx context.Context, log *logrus.Logger, monitoringDirectori
 	}
 }
 
-func saveHashes(
-	ctx context.Context,
-	log *logrus.Logger,
-	hashC <-chan worker.FileHash,
-	dd *k8s.DeploymentData,
-	errC chan<- error,
-) <-chan int {
+func saveHashes(ctx context.Context, hashC <-chan worker.FileHash, dd *k8s.DeploymentData, errC chan<- error) <-chan int {
 	doneC := make(chan int)
 
 	go func() {
@@ -167,22 +161,45 @@ func compareHashes(
 	ctx context.Context,
 	log *logrus.Logger,
 	hashC <-chan worker.FileHash,
-	directory string,
+	procName string,
 	algName string,
 	deploymentData *k8s.DeploymentData,
-	errC chan<- error,
-) <-chan int {
+	errC chan<- error) <-chan int {
+
 	doneC := make(chan int)
 	go func() {
 		defer close(doneC)
-		// TODO update with actual process
-		procDir, err := GetProcessPath("nginx", "")
+
+		procDirs, err := GetProcessPath(procName, "")
 		if err != nil {
-			errC <- fmt.Errorf("failed get hash data: %w", err)
+			errC <- fmt.Errorf("failed get process path: %w", err)
 			return
 		}
 
-		expectedHashes, err := data.NewHashData(data.DB().SQL()).Get(algName, procDir, deploymentData.NamePod)
+		//expectedHashes, err := data.NewHashData(data.DB().SQL()).Get(algName, procDirs, deploymentData.NamePod)
+		//if err != nil {
+		//	errC <- fmt.Errorf("failed get hash data: %w", err)
+		//	return
+		//}
+
+		// local file as a storage
+		//fd, err := os.Open("/checksums/nginx-latest.txt")
+		//if err != nil {
+		//	errC <- fmt.Errorf("cannot create file storage: %w", err)
+		//	return
+		//}
+		//defer fd.Close()
+
+		ms := minio.GetMinioStorage()
+		csFile := process.CheckSumFile(procName, algName)
+		log.Infof("getting check sums file %s", csFile)
+		hashData, err := ms.Load(ctx, viper.GetString("minio-bucket"), csFile)
+		if err != nil {
+			errC <- fmt.Errorf("cannot read hash data: %w", err)
+			return
+		}
+
+		expectedHashes, err := data.NewFileStorage(bytes.NewReader(hashData)).Get()
 		if err != nil {
 			errC <- fmt.Errorf("failed get hash data: %w", err)
 			return
@@ -201,14 +218,15 @@ func compareHashes(
 			default:
 			}
 
-			if h, ok := expectedHashesMap[v.Path]; ok {
+			strippedPaths := strings.TrimPrefix(v.Path, procDirs)
+			if h, ok := expectedHashesMap[strippedPaths]; ok {
 				if h != v.Hash {
-					errC <- &IntegrityError{Type: ErrTypeFileMismatch, Path: v.Path, Hash: v.Hash}
+					errC <- &IntegrityError{Type: ErrTypeFileMismatch, Path: strippedPaths, Hash: v.Hash}
 					return
 				}
-				delete(expectedHashesMap, v.Path)
+				delete(expectedHashesMap, strippedPaths)
 			} else {
-				errC <- &IntegrityError{Type: ErrTypeNewFile, Path: v.Path, Hash: v.Hash}
+				errC <- &IntegrityError{Type: ErrTypeNewFile, Path: strippedPaths, Hash: v.Hash}
 				return
 			}
 		}

@@ -23,7 +23,7 @@ configMap:
   name: integrity-sum-config
   verbose: debug
   processName: nginx # Container process name
-  mountPaths: # Paths to monitoring
+  monitoringPaths: # Paths to monitoring
     - etc/nginx
     - usr/bin
   splunk:
