@@ -63,21 +63,6 @@ func (mr *MockIKuberServiceMockRecorder) GetDataFromDeployment() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataFromDeployment", reflect.TypeOf((*MockIKuberService)(nil).GetDataFromDeployment))
 }
 
-// GetDataFromK8sAPI mocks base method.
-func (m *MockIKuberService) GetDataFromK8sAPI() (*k8s.DataFromK8sAPI, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDataFromK8sAPI")
-	ret0, _ := ret[0].(*k8s.DataFromK8sAPI)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetDataFromK8sAPI indicates an expected call of GetDataFromK8sAPI.
-func (mr *MockIKuberServiceMockRecorder) GetDataFromK8sAPI() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDataFromK8sAPI", reflect.TypeOf((*MockIKuberService)(nil).GetDataFromK8sAPI))
-}
-
 // RestartPod mocks base method.
 func (m *MockIKuberService) RestartPod() error {
 	m.ctrl.T.Helper()

@@ -17,7 +17,6 @@ import (
 
 type IKuberService interface {
 	Connect() error
-	GetDataFromK8sAPI() (*DataFromK8sAPI, error)
 	GetDataFromDeployment() (*DeploymentData, error)
 	RestartPod() error
 }
@@ -111,34 +110,6 @@ func (ks *KubeClient) Connect() error {
 	ks.clientset = clientset
 
 	return nil
-}
-
-// GetDataFromK8sAPI returns data from deployment
-// TODO: seems like it's not used
-func (ks *KubeClient) GetDataFromK8sAPI() (*DataFromK8sAPI, error) {
-	//kubeData, err := ks.GetKubeData()
-	//if err != nil {
-	//	ks.logger.Errorf("can't connect to K8sAPI: %s", err)
-	//	return nil, err
-	//}
-
-	deploymentData, err := ks.GetDataFromDeployment()
-	if err != nil {
-		ks.logger.Errorf("error while getting data from kuberAPI %s", err)
-		return nil, err
-	}
-
-	if err != nil {
-		ks.logger.Errorf("err while getting data from configMap K8sAPI %s", err)
-		return &DataFromK8sAPI{}, err
-	}
-
-	dataFromK8sAPI := &DataFromK8sAPI{
-		KubeData:       kubeData,
-		DeploymentData: deploymentData,
-	}
-
-	return dataFromK8sAPI, nil
 }
 
 // GetDataFromDeployment returns data from deployment
