@@ -37,12 +37,6 @@ type DeploymentData struct {
 	ReleaseName    string
 }
 
-// TODO: seems like this struct is not needed
-type DataFromK8sAPI struct {
-	KubeData       *KubeData
-	DeploymentData *DeploymentData
-}
-
 type KubeClient struct {
 	logger    *logrus.Logger
 	clientset *kubernetes.Clientset
