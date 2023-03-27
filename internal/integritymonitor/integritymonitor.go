@@ -75,7 +75,6 @@ func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus
 func CheckIntegrity(ctx context.Context,
 	log *logrus.Logger,
 	monitoringDirectory string,
-	kubeData *k8s.KubeData,
 	deploymentData *k8s.DeploymentData,
 	kubeClient *k8s.KubeClient) error {
 	log.Debug("begin check integrity")
@@ -108,7 +107,7 @@ func CheckIntegrity(ctx context.Context,
 		log.WithField("countHashes", countHashes).Info("hashes compared successfully")
 		return nil
 	case err := <-errC:
-		integrityCheckFailed(log, err, kubeData, deploymentData, kubeClient)
+		integrityCheckFailed(log, err, deploymentData, kubeClient)
 		return err
 	}
 }
@@ -223,7 +222,6 @@ func compareHashes(
 func integrityCheckFailed(
 	log *logrus.Logger,
 	err error,
-	kubeData *k8s.KubeData,
 	deploymentData *k8s.DeploymentData,
 	kubeClient *k8s.KubeClient,
 ) {
@@ -237,7 +235,7 @@ func integrityCheckFailed(
 
 	l.Error("check integrity failed")
 
-	e := alerts.Send(alerts.New(fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
+	e := alerts.Send(alerts.New(fmt.Sprintf("Restart pod %v", deploymentData.NamePod),
 		err.Error(),
 		mPath,
 	))
@@ -245,7 +243,7 @@ func integrityCheckFailed(
 		log.WithError(e).Error("Failed send alert")
 	}
 
-	kubeClient.RolloutDeployment(kubeData)
+	kubeClient.RestartPod()
 }
 
 func fileHashToDtoDB(fh worker.FileHash, algName string, podName string, releaseId int) *data.HashData {

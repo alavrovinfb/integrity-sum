@@ -79,11 +79,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed connect to kubernetes: %w", err)
 	}
-	kubeData, err := kubeClient.GetKubeData()
-	if err != nil {
-		log.Fatalf("failed get kube data: %w", err)
-	}
-	deploymentData, err := kubeClient.GetDataFromDeployment(kubeData)
+
+	deploymentData, err := kubeClient.GetDataFromDeployment()
 	if err != nil {
 		log.Fatalf("failed get deployment data: %w", err)
 	}
@@ -100,7 +97,7 @@ func main() {
 			return
 		}
 
-		err := runCheckIntegrity(ctx, log, optsMap, kubeData, deploymentData, kubeClient)
+		err := runCheckIntegrity(ctx, log, optsMap, deploymentData, kubeClient)
 		if err == context.Canceled {
 			log.Info("execution cancelled")
 			return
@@ -140,7 +137,6 @@ func setupIntegrity(ctx context.Context, log *logrus.Logger, deploymentData *k8s
 func runCheckIntegrity(ctx context.Context,
 	log *logrus.Logger,
 	optsMap map[string][]string,
-	kubeData *k8s.KubeData,
 	deploymentData *k8s.DeploymentData,
 	kubeClient *k8s.KubeClient) error {
 
@@ -153,7 +149,7 @@ func runCheckIntegrity(ctx context.Context,
 					log.WithError(err).Error("failed build process path")
 					return err
 				}
-				err = integritymonitor.CheckIntegrity(ctx, log, processPath, kubeData, deploymentData, kubeClient)
+				err = integritymonitor.CheckIntegrity(ctx, log, processPath, deploymentData, kubeClient)
 				if err != nil {
 					log.WithError(err).Error("failed check integrity")
 					return err
