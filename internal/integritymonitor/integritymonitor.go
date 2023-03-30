@@ -190,7 +190,7 @@ func compareHashes(
 		//}
 		//defer fd.Close()
 
-		ms := minio.GetMinioStorage()
+		ms := minio.Instance()
 		csFile := process.CheckSumFile(procName, algName)
 		log.Infof("getting check sums file %s", csFile)
 		hashData, err := ms.Load(ctx, viper.GetString("minio-bucket"), csFile)

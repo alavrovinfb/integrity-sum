@@ -7,17 +7,17 @@ import (
 	"strings"
 )
 
-type FileStorage struct {
+type ChecksumsReader struct {
 	r io.Reader
 }
 
-func NewFileStorage(reader io.Reader) *FileStorage {
-	return &FileStorage{
+func NewFileStorage(reader io.Reader) *ChecksumsReader {
+	return &ChecksumsReader{
 		r: reader,
 	}
 }
 
-func (fs *FileStorage) Get() ([]*HashDataOutput, error) {
+func (fs *ChecksumsReader) Get() ([]*HashDataOutput, error) {
 	fileScanner := bufio.NewScanner(fs.r)
 	fileScanner.Split(bufio.ScanLines)
 	var checkSums []*HashDataOutput
@@ -33,7 +33,7 @@ func (fs *FileStorage) Get() ([]*HashDataOutput, error) {
 	return checkSums, nil
 }
 
-func (fs *FileStorage) parseRecord(rec string) (*HashDataOutput, error) {
+func (fs *ChecksumsReader) parseRecord(rec string) (*HashDataOutput, error) {
 
 	if len(rec) == 0 {
 		return nil, fmt.Errorf("%s", "an empty hash record")

@@ -42,8 +42,6 @@ func init() {
 	}
 }
 
-var MS *Storage
-
 // NewMinIOClient returns the MinIO client
 func NewMinIOClient(host string, log *logrus.Logger) (*minio.Client, error) {
 	accessKeyID := viper.GetString("minio-access-key")
@@ -166,8 +164,4 @@ func (s *Storage) CreateBucketIfNotExists(ctx context.Context, bucketName string
 // ListBuckets returns a list of all buckets in the MinIO server
 func (s *Storage) ListBuckets(ctx context.Context) ([]minio.BucketInfo, error) {
 	return s.client.ListBuckets(ctx)
-}
-
-func GetMinioStorage() *Storage {
-	return MS
 }

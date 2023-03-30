@@ -48,7 +48,7 @@ func main() {
 	//	log.Fatalf("failed connect to database: %w", err)
 	//}
 
-	minio.MS, err = minio.NewStorage(log)
+	_, err = minio.NewStorage(log)
 	if err != nil {
 		log.Fatalf("failed connect to minio storage: %w", err)
 	}

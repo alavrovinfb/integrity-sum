@@ -35,7 +35,7 @@ func TestFileStorage_parseRecord(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fs := &FileStorage{
+			fs := &ChecksumsReader{
 				r: tt.fields.r,
 			}
 			got, err := fs.parseRecord(tt.args.rec)

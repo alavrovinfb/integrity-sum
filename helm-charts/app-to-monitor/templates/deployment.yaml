@@ -1,4 +1,5 @@
 {{- $sa := print .Release.Name "-" .Values.serviceAccount -}}
+{{- $mp := join "," .Values.configMap.monitoringPaths -}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -22,7 +23,7 @@ spec:
         app: {{ .Values.metadata.appName }}
       annotations:
         integrity-monitor.scnsoft.com/inject: "true"
-        {{ .Values.configMap.processName }}.integrity-monitor.scnsoft.com/monitoring-paths: {{ join "," .Values.configMap.monitoringPaths }}
+        {{ .Values.configMap.processName }}.integrity-monitor.scnsoft.com/monitoring-paths: {{$mp}}
     spec:
       serviceAccountName: {{ $sa }}
       shareProcessNamespace: true
@@ -61,13 +62,13 @@ spec:
             - name: DEPLOYMENT_TYPE
               value: deployment
           args:
-            - --monitoring-options={{ .Values.configMap.processName }}={{ join "," .Values.configMap.monitoringPaths }}
+            - --monitoring-options={{ .Values.configMap.processName }}={{$mp}}
             - --process-image={{ .Values.configMap.processName }}={{ .Values.container.image }}
             - --verbose={{ .Values.configMap.verbose }}
-            - --db-host={{ .Values.releaseNameDB }}-postgresql
-            - --db-port={{ .Values.db.port }}
-            - --db-name={{ .Values.db.database }}
-            - --db-user={{ .Values.db.username }}
+{{/*            - --db-host={{ .Values.releaseNameDB }}-postgresql*/}}
+{{/*            - --db-port={{ .Values.db.port }}*/}}
+{{/*            - --db-name={{ .Values.db.database }}*/}}
+{{/*            - --db-user={{ .Values.db.username }}*/}}
             {{- if .Values.configMap.splunk.enabled }}
             - --splunk-enabled={{ .Values.configMap.splunk.enabled }}
             - --splunk-url={{ .Values.configMap.splunkUrl }}
