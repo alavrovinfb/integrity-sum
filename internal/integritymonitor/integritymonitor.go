@@ -5,10 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"strconv"
 	"strings"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/data"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/utils/process"
@@ -35,7 +36,7 @@ func GetProcessPath(procName string, path string) (string, error) {
 }
 
 func CheckIntegrity(ctx context.Context, log *logrus.Logger, processName string, monitoringDirectories []string,
-	kubeData *k8s.KubeData, deploymentData *k8s.DeploymentData, kubeClient *k8s.KubeClient) error {
+	deploymentData *k8s.DeploymentData, kubeClient *k8s.KubeClient) error {
 	log.Debug("begin check integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -69,7 +70,7 @@ func CheckIntegrity(ctx context.Context, log *logrus.Logger, processName string,
 		log.WithField("countHashes", countHashes).Info("hashes compared successfully")
 		return nil
 	case err := <-errC:
-		integrityCheckFailed(log, err, kubeData, deploymentData, kubeClient)
+		integrityCheckFailed(log, err, deploymentData, kubeClient)
 		return err
 	}
 }
@@ -145,7 +146,6 @@ func compareHashes(
 func integrityCheckFailed(
 	log *logrus.Logger,
 	err error,
-	kubeData *k8s.KubeData,
 	deploymentData *k8s.DeploymentData,
 	kubeClient *k8s.KubeClient,
 ) {
@@ -159,7 +159,7 @@ func integrityCheckFailed(
 
 	l.Error("check integrity failed")
 
-	e := alerts.Send(alerts.New(fmt.Sprintf("Restart deployment %v", deploymentData.NameDeployment),
+	e := alerts.Send(alerts.New(fmt.Sprintf("Restart pod %v", deploymentData.NamePod),
 		err.Error(),
 		mPath,
 	))
@@ -167,17 +167,7 @@ func integrityCheckFailed(
 		log.WithError(e).Error("Failed send alert")
 	}
 
-	kubeClient.RolloutDeployment(kubeData)
-}
-
-func fileHashToDtoDB(fh worker.FileHash, algName string, podName string, releaseId int) *data.HashData {
-	return &data.HashData{
-		Hash:         fh.Hash,
-		FullFileName: fh.Path,
-		Algorithm:    algName,
-		PodName:      podName,
-		ReleaseId:    releaseId,
-	}
+	kubeClient.RestartPod()
 }
 
 func ParseMonitoringOpts(opts string) (map[string][]string, error) {

@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/configs"
 	_ "github.com/ScienceSoft-Inc/integrity-sum/internal/ffi/bee2"
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/integritymonitor"
@@ -18,9 +22,6 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/health"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/minio"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 func main() {
@@ -42,6 +43,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed connect to minio storage: %w", err)
 	}
+
+	k8s.InitKubeData()
 
 	// Create alert sender
 	if viper.GetBool("splunk-enabled") {
@@ -73,11 +76,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed connect to kubernetes: %w", err)
 	}
-	kubeData, err := kubeClient.GetKubeData()
-	if err != nil {
-		log.Fatalf("failed get kube data: %w", err)
-	}
-	deploymentData, err := kubeClient.GetDataFromDeployment(kubeData)
+
+	deploymentData, err := kubeClient.GetDataFromDeployment()
 	if err != nil {
 		log.Fatalf("failed get deployment data: %w", err)
 	}
@@ -89,7 +89,7 @@ func main() {
 
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), log, func(ctx context.Context) {
-		err := runCheckIntegrity(ctx, log, optsMap, kubeData, deploymentData, kubeClient)
+		err := runCheckIntegrity(ctx, log, optsMap, deploymentData, kubeClient)
 		if err == context.Canceled {
 			log.Info("execution cancelled")
 			return
@@ -104,7 +104,6 @@ func main() {
 func runCheckIntegrity(ctx context.Context,
 	log *logrus.Logger,
 	optsMap map[string][]string,
-	kubeData *k8s.KubeData,
 	deploymentData *k8s.DeploymentData,
 	kubeClient *k8s.KubeClient) error {
 
@@ -112,7 +111,7 @@ func runCheckIntegrity(ctx context.Context,
 	t := time.NewTicker(viper.GetDuration("duration-time"))
 	for range t.C {
 		for proc, paths := range optsMap {
-			err = integritymonitor.CheckIntegrity(ctx, log, proc, paths, kubeData, deploymentData, kubeClient)
+			err = integritymonitor.CheckIntegrity(ctx, log, proc, paths, deploymentData, kubeClient)
 			if err != nil {
 				log.WithError(err).Error("failed check integrity")
 				return err

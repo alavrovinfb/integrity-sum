@@ -10,18 +10,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// config defaults
-const (
-	dbHost              = "127.0.0.1"
-	dbPort              = 5432
-	dbName              = "postgres"
-	dbUser              = "postgres"
-	dbPassword          = "postgres"
-	dbConnectionTimeout = 10
-	dbTickerInterval    = 10 * time.Second
-	dbThresholdTimeout  = "3 MINUTE"
-)
-
 const (
 	procDir      = "/proc"
 	durationTime = 30 * time.Second
