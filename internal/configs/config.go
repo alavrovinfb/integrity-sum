@@ -54,29 +54,6 @@ func init() {
 		os.Exit(1)
 	}
 
-	fsDB := pflag.NewFlagSet("db", pflag.ContinueOnError)
-	fsDB.String("db-host", dbHost, "DB host")
-	fsDB.Int("db-port", dbPort, "DB port")
-	fsDB.String("db-name", dbName, "DB name")
-	fsDB.String("db-user", dbUser, "DB user name")
-	fsDB.String("db-password", dbPassword, "DB user password")
-	fsDB.Int("db-connection-timeout", dbConnectionTimeout, "DB connection timeout")
-	fsDB.Duration("db-ticker-interval", dbTickerInterval, "specific interval of time repeatedly for ticker")
-	fsDB.String("db-threshold-timeout", dbThresholdTimeout, "specific interval of time repeatedly for query in DB")
-	pflag.CommandLine.AddFlagSet(fsDB)
-	if err := viper.BindPFlags(fsDB); err != nil {
-		fmt.Printf("error binding flags: %v", err)
-		os.Exit(1)
-	}
-	viper.BindEnv("db-host", "DB_HOST")
-	viper.BindEnv("db-port", "DB_PORT")
-	viper.BindEnv("db-name", "DB_NAME")
-	viper.BindEnv("db-user", "DB_USER")
-	viper.BindEnv("db-password", "DB_PASSWORD")
-	viper.BindEnv("db-connection-timeout", "DB_CONNECTION_TIMEOUT")
-	viper.BindEnv("db-ticker-interval", "DB_TICKER_INTERVAL")
-	viper.BindEnv("db-threshold-timeout", "DB_THRESHOLD_TIMEOUT")
-
 	fsSp := pflag.NewFlagSet("splunk", pflag.ContinueOnError)
 	fsSp.Bool("splunk-enabled", false, "Enable splunk alerts")
 	fsSp.String("splunk-url", "", "Splunk HTTP Events Collector URL")
