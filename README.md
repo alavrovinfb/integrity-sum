@@ -96,13 +96,6 @@ make compile
 ### Manual start
 First of all, get a build image with `make buildtools`. It will be used to compile source code (Go & C/C++).
 
-Set some environment variables to configure DB params:
-- DB_PASSWORD
-- DB_USER
-- DB_NAME
-
-They will be stored in a secret on the cluster during deployment and used to create application DB and manage connections to it.
-
 optional:
 - SYSLOG_ENABLED=true, if syslog functionality is required;
 - BEE2_ENABLED=true, if bee2 hash algorithm is required.
@@ -119,26 +112,16 @@ make docker
 ```
 If you use `kind` instead of `minikube`, you may do `make kind-load-images` to preload image.
 
-Then update the on-disk dependencies to mirror Chart.yaml.
-```
-helm dependency update helm-charts/database-to-integrity-sum
-```
 This command installs a chart archive.
 ```
 helm install `release name` `path to a packaged chart`
 ```
 There are some predefined targets in the Makefile for deployment:
-- Install helm chart with database
-    ```
-    make helm-database
-    ```
 
 - Install helm chart with app
     ```
     make helm-app
     ```
-
-Use `make purge-db` to completle remove db container and it storage.
 
 ## Pay attention!
 If you want to use a hasher-sidecar, then you need to specify the following data in your deployment:

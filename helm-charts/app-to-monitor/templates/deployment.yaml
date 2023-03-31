@@ -38,11 +38,6 @@ spec:
           image: {{ .Values.containerSidecar.image }}
           imagePullPolicy: IfNotPresent
           env:
-{{/*            - name: DB_PASSWORD*/}}
-{{/*              valueFrom:*/}}
-{{/*                secretKeyRef:*/}}
-{{/*                  name: {{ .Values.releaseNameDB }}-postgresql*/}}
-{{/*                  key: password*/}}
             {{- if .Values.minio.enabled }}
             - name: MINIO_SERVER_USER
               valueFrom:
@@ -65,10 +60,6 @@ spec:
             - --monitoring-options={{ .Values.configMap.processName }}={{$mp}}
             - --process-image={{ .Values.configMap.processName }}={{ .Values.container.image }}
             - --verbose={{ .Values.configMap.verbose }}
-{{/*            - --db-host={{ .Values.releaseNameDB }}-postgresql*/}}
-{{/*            - --db-port={{ .Values.db.port }}*/}}
-{{/*            - --db-name={{ .Values.db.database }}*/}}
-{{/*            - --db-user={{ .Values.db.username }}*/}}
             {{- if .Values.configMap.splunk.enabled }}
             - --splunk-enabled={{ .Values.configMap.splunk.enabled }}
             - --splunk-url={{ .Values.configMap.splunkUrl }}
