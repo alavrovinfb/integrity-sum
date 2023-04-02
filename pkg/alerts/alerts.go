@@ -5,18 +5,20 @@ import (
 )
 
 type Alert struct {
-	Time    time.Time
-	Message string
-	Reason  string
-	Path    string
+	Time        time.Time
+	Message     string
+	Reason      string
+	Path        string
+	ProcessName string
 }
 
-func New(msg, reason, path string) Alert {
+func New(msg, reason, path, procName string) Alert {
 	return Alert{
-		Time:    time.Now(),
-		Message: msg,
-		Reason:  reason,
-		Path:    path,
+		Time:        time.Now(),
+		Message:     msg,
+		Reason:      reason,
+		Path:        path,
+		ProcessName: procName,
 	}
 }
 

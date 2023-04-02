@@ -59,7 +59,7 @@ func CheckIntegrity(ctx context.Context, log *logrus.Logger, processName string,
 		viper.GetInt("count-workers"),
 		walker.ChanWalkDir(ctx, paths, log),
 		worker.NewWorker(ctx, viper.GetString("algorithm"), log),
-	), processName, viper.GetString("algorithm"), deploymentData, errC)
+	), processName, viper.GetString("algorithm"), errC)
 
 	log.Trace("calculate & save hashes...")
 	select {
@@ -70,7 +70,7 @@ func CheckIntegrity(ctx context.Context, log *logrus.Logger, processName string,
 		log.WithField("countHashes", countHashes).Info("hashes compared successfully")
 		return nil
 	case err := <-errC:
-		integrityCheckFailed(log, err, deploymentData, kubeClient)
+		integrityCheckFailed(log, err, deploymentData, kubeClient, processName)
 		return err
 	}
 }
@@ -81,7 +81,6 @@ func compareHashes(
 	hashC <-chan worker.FileHash,
 	procName string,
 	algName string,
-	deploymentData *k8s.DeploymentData,
 	errC chan<- error) <-chan int {
 
 	doneC := make(chan int)
@@ -148,6 +147,7 @@ func integrityCheckFailed(
 	err error,
 	deploymentData *k8s.DeploymentData,
 	kubeClient *k8s.KubeClient,
+	procName string,
 ) {
 	l := log.WithError(err)
 	var mPath string
@@ -162,6 +162,7 @@ func integrityCheckFailed(
 	e := alerts.Send(alerts.New(fmt.Sprintf("Restart pod %v", deploymentData.NamePod),
 		err.Error(),
 		mPath,
+		procName,
 	))
 	if e != nil {
 		log.WithError(e).Error("Failed send alert")

@@ -45,6 +45,16 @@ func main() {
 	}
 
 	k8s.InitKubeData()
+	kubeClient := k8s.NewKubeService(log)
+	err = kubeClient.Connect()
+	if err != nil {
+		log.Fatalf("failed connect to kubernetes: %w", err)
+	}
+
+	deploymentData, err := kubeClient.GetDataFromDeployment()
+	if err != nil {
+		log.Fatalf("failed get deployment data: %w", err)
+	}
 
 	// Create alert sender
 	if viper.GetBool("splunk-enabled") {
@@ -61,25 +71,21 @@ func main() {
 
 	if viper.GetBool("syslog-enabled") {
 		addr := fmt.Sprintf("%s:%d", viper.GetString("syslog-host"), viper.GetInt("syslog-port"))
-		syslogSender, err := syslogclient.New(log, viper.GetString("syslog-proto"), addr, syslogclient.DefaultPriority)
+		syslogSender, err := syslogclient.New(
+			log,
+			viper.GetString("syslog-proto"),
+			addr,
+			syslogclient.DefaultPriority,
+			fmt.Sprintf("%s.%s", deploymentData.NameDeployment, deploymentData.NameSpace),
+			common.AppId)
 		if err != nil {
 			log.Fatalf("cannnot initialize sysylog client %v", err)
 		}
+
 		alerts.Register(syslogSender)
 		log.Info("notification to syslog enabled")
 
 		defer syslogSender.Close()
-	}
-
-	kubeClient := k8s.NewKubeService(log)
-	err = kubeClient.Connect()
-	if err != nil {
-		log.Fatalf("failed connect to kubernetes: %w", err)
-	}
-
-	deploymentData, err := kubeClient.GetDataFromDeployment()
-	if err != nil {
-		log.Fatalf("failed get deployment data: %w", err)
 	}
 
 	optsMap, err := integritymonitor.ParseMonitoringOpts(viper.GetString("monitoring-options"))
