@@ -98,10 +98,3 @@ spec:
                 - SYS_PTRACE
           stdin: true
           tty: true
-          volumeMounts:
-            - name: checksums
-              mountPath: /checksums
-      volumes:
-        - name: checksums
-          configMap:
-            name: {{ .Release.Name }}-checksums
