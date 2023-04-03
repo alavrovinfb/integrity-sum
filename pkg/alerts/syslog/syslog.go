@@ -22,7 +22,7 @@ var ErrToType = map[string]int{
 	"file content mismatch": 1,
 	"new file found":        2,
 	"file deleted":          3,
-	"heartbeat event":       4,
+	alerts.HeartbeatEvent:   4,
 }
 
 var _ alerts.Sender = (*SyslogClient)(nil)
@@ -86,8 +86,10 @@ func (sl *SyslogClient) Close() {
 }
 
 func (sl *SyslogClient) syslogMessage(alert alerts.Alert) string {
+	// pod = host name
+	podName, _ := os.Hostname()
 	pn := alert.ProcessName
-	return fmt.Sprintf("time=%s event-type=%04d service=%s image=%s namespace=%s cluster=%s message=%s file=%s reason=%s",
-		alert.Time.Format(time.Stamp), ErrToType[alert.Reason], pn, viper.GetStringMapString("process-image")[pn],
+	return fmt.Sprintf("time=%s event-type=%04d service=%s pod=%s image=%s namespace=%s cluster=%s message=%s file=%s reason=%s",
+		alert.Time.Format(time.Stamp), ErrToType[alert.Reason], pn, podName, viper.GetStringMapString("process-image")[pn],
 		viper.GetString("pod-namespace"), viper.GetString("cluster-name"), alert.Message, alert.Path, alert.Reason)
 }

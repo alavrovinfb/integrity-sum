@@ -1,8 +1,15 @@
 package alerts
 
 import (
+	"context"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
+
+// default heartbeat interval 30 min
+const interval = time.Minute * 30
+const HeartbeatEvent = "heartbeat event"
 
 type Alert struct {
 	Time        time.Time
@@ -43,4 +50,20 @@ func Send(alert Alert) error {
 		return nil
 	}
 	return errs
+}
+
+func Heartbeat(ctx context.Context, logger *logrus.Logger, alert Alert) {
+	go func() {
+		t := time.NewTicker(interval)
+		for {
+			select {
+			case <-t.C:
+				if err := Send(alert); err != nil {
+					logger.WithField("heartbeat", "send").Error(err)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }

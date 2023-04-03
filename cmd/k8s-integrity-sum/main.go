@@ -95,6 +95,9 @@ func main() {
 
 	// Run Application with graceful shutdown context
 	graceful.Execute(context.Background(), log, func(ctx context.Context) {
+		hbAlert := alerts.New("health check", alerts.HeartbeatEvent, "", common.AppId)
+		alerts.Heartbeat(ctx, log, hbAlert)
+
 		err := runCheckIntegrity(ctx, log, optsMap, deploymentData, kubeClient)
 		if err == context.Canceled {
 			log.Info("execution cancelled")
