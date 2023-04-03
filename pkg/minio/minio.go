@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -137,7 +137,7 @@ func (s *Storage) Load(ctx context.Context, bucketName, objectName string) ([]by
 		"objectName": info.Key,
 		"size":       info.Size,
 	}).Debug("loaded successfully")
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }
 
 // Remove removes the @objName from the @bucketName

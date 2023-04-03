@@ -1,13 +1,12 @@
 package integritymonitor
 
 import (
+	"bytes"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -18,6 +17,7 @@ import (
 	"github.com/ScienceSoft-Inc/integrity-sum/internal/worker"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/alerts"
 	"github.com/ScienceSoft-Inc/integrity-sum/pkg/k8s"
+	"github.com/ScienceSoft-Inc/integrity-sum/pkg/minio"
 )
 
 const (
@@ -35,48 +35,8 @@ func GetProcessPath(procName string, path string) (string, error) {
 	return fmt.Sprintf("/proc/%d/root/%s", pid, path), nil
 }
 
-func SetupIntegrity(ctx context.Context, monitoringDirectory string, log *logrus.Logger, deploymentData *k8s.DeploymentData) error {
-	log.Debug("begin setup integrity")
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	errC := make(chan error)
-	defer close(errC)
-
-	saveHahesChan := saveHashes(
-		ctx,
-		log,
-		worker.WorkersPool(
-			viper.GetInt("count-workers"),
-			walker.ChanWalkDir(ctx, monitoringDirectory, log),
-			worker.NewWorker(ctx, viper.GetString("algorithm"), log),
-		),
-		deploymentData,
-		errC,
-	)
-
-	log.Trace("calculate & save hashes...")
-	select {
-	case <-ctx.Done():
-		log.Error(ctx.Err())
-		return ctx.Err()
-
-	case countHashes := <-saveHahesChan:
-		log.WithField("countHashes", countHashes).Info("hashes stored successfully")
-		log.Debug("end setup integrity")
-		return nil
-
-	case err := <-errC:
-		log.WithError(err).Error("setup integrity failed")
-		return err
-	}
-}
-
-func CheckIntegrity(ctx context.Context,
-	log *logrus.Logger,
-	monitoringDirectory string,
-	deploymentData *k8s.DeploymentData,
-	kubeClient *k8s.KubeClient) error {
+func CheckIntegrity(ctx context.Context, log *logrus.Logger, processName string, monitoringDirectories []string,
+	deploymentData *k8s.DeploymentData, kubeClient *k8s.KubeClient) error {
 	log.Debug("begin check integrity")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -84,19 +44,22 @@ func CheckIntegrity(ctx context.Context,
 	errC := make(chan error)
 	defer close(errC)
 
-	comparedHashesChan := compareHashes(
-		ctx,
-		log,
-		worker.WorkersPool(
-			viper.GetInt("count-workers"),
-			walker.ChanWalkDir(ctx, monitoringDirectory, log),
-			worker.NewWorker(ctx, viper.GetString("algorithm"), log),
-		),
-		monitoringDirectory,
-		viper.GetString("algorithm"),
-		deploymentData,
-		errC,
-	)
+	var err error
+	paths := make([]string, len(monitoringDirectories))
+	for i, p := range monitoringDirectories {
+		paths[i], err = GetProcessPath(processName, p)
+		if err != nil {
+			log.WithError(err).Error("failed build process path")
+			return err
+		}
+
+	}
+
+	comparedHashesChan := compareHashes(ctx, log, worker.WorkersPool(
+		viper.GetInt("count-workers"),
+		walker.ChanWalkDir(ctx, paths, log),
+		worker.NewWorker(ctx, viper.GetString("algorithm"), log),
+	), processName, viper.GetString("algorithm"), deploymentData, errC)
 
 	log.Trace("calculate & save hashes...")
 	select {
@@ -112,75 +75,35 @@ func CheckIntegrity(ctx context.Context,
 	}
 }
 
-func saveHashes(
-	ctx context.Context,
-	log *logrus.Logger,
-	hashC <-chan worker.FileHash,
-	dd *k8s.DeploymentData,
-	errC chan<- error,
-) <-chan int {
-	doneC := make(chan int)
-
-	go func() {
-		defer close(doneC)
-
-		const defaultHashCnt = 100
-		hashData := make([]*data.HashData, 0, defaultHashCnt)
-		alg := viper.GetString("algorithm")
-		countHashes := 0
-
-		for v := range hashC {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			hashData = append(hashData, fileHashToDtoDB(v, alg, dd.NamePod, 0))
-			countHashes++
-		}
-
-		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		defer cancel()
-
-		queryR, argsR := data.NewReleaseData(data.DB().SQL()).PrepareQuery(dd.NameDeployment, dd.Image, "deployment")
-		queryH, argsH := data.NewHashData(data.DB().SQL()).PrepareQuery(hashData, dd.NameDeployment)
-		err := data.WithTx(func(txn *sql.Tx) error {
-			_, err := txn.ExecContext(ctx, queryR, argsR...)
-			if err != nil {
-				return err
-			}
-			_, err = txn.ExecContext(ctx, queryH, argsH...)
-			if err != nil {
-				return err
-			}
-			return nil
-		})
-
-		if err != nil {
-			errC <- err
-			return
-		}
-		doneC <- countHashes
-	}()
-
-	return doneC
-}
-
 func compareHashes(
 	ctx context.Context,
 	log *logrus.Logger,
 	hashC <-chan worker.FileHash,
-	directory string,
+	procName string,
 	algName string,
 	deploymentData *k8s.DeploymentData,
-	errC chan<- error,
-) <-chan int {
+	errC chan<- error) <-chan int {
+
 	doneC := make(chan int)
 	go func() {
 		defer close(doneC)
 
-		expectedHashes, err := data.NewHashData(data.DB().SQL()).Get(algName, directory, deploymentData.NamePod)
+		procDirs, err := GetProcessPath(procName, "")
+		if err != nil {
+			errC <- fmt.Errorf("failed get process path: %w", err)
+			return
+		}
+
+		ms := minio.Instance()
+		csFile := process.CheckSumFile(procName, algName)
+		log.Infof("getting check sums file %s", csFile)
+		hashData, err := ms.Load(ctx, viper.GetString("minio-bucket"), csFile)
+		if err != nil {
+			errC <- fmt.Errorf("cannot read hash data: %w", err)
+			return
+		}
+
+		expectedHashes, err := data.NewFileStorage(bytes.NewReader(hashData)).Get()
 		if err != nil {
 			errC <- fmt.Errorf("failed get hash data: %w", err)
 			return
@@ -199,14 +122,15 @@ func compareHashes(
 			default:
 			}
 
-			if h, ok := expectedHashesMap[v.Path]; ok {
+			strippedPaths := strings.TrimPrefix(v.Path, procDirs)
+			if h, ok := expectedHashesMap[strippedPaths]; ok {
 				if h != v.Hash {
-					errC <- &IntegrityError{Type: ErrTypeFileMismatch, Path: v.Path, Hash: v.Hash}
+					errC <- &IntegrityError{Type: ErrTypeFileMismatch, Path: strippedPaths, Hash: v.Hash}
 					return
 				}
-				delete(expectedHashesMap, v.Path)
+				delete(expectedHashesMap, strippedPaths)
 			} else {
-				errC <- &IntegrityError{Type: ErrTypeNewFile, Path: v.Path, Hash: v.Hash}
+				errC <- &IntegrityError{Type: ErrTypeNewFile, Path: strippedPaths, Hash: v.Hash}
 				return
 			}
 		}
@@ -244,16 +168,6 @@ func integrityCheckFailed(
 	}
 
 	kubeClient.RestartPod()
-}
-
-func fileHashToDtoDB(fh worker.FileHash, algName string, podName string, releaseId int) *data.HashData {
-	return &data.HashData{
-		Hash:         fh.Hash,
-		FullFileName: fh.Path,
-		Algorithm:    algName,
-		PodName:      podName,
-		ReleaseId:    releaseId,
-	}
 }
 
 func ParseMonitoringOpts(opts string) (map[string][]string, error) {

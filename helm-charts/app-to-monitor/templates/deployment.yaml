@@ -1,4 +1,5 @@
 {{- $sa := print .Release.Name "-" .Values.serviceAccount -}}
+{{- $mp := join "," .Values.configMap.monitoringPaths -}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -22,7 +23,7 @@ spec:
         app: {{ .Values.metadata.appName }}
       annotations:
         integrity-monitor.scnsoft.com/inject: "true"
-        {{ .Values.configMap.processName }}.integrity-monitor.scnsoft.com/monitoring-paths: {{ join "," .Values.configMap.mountPaths }}
+        {{ .Values.configMap.processName }}.integrity-monitor.scnsoft.com/monitoring-paths: {{$mp}}
     spec:
       serviceAccountName: {{ $sa }}
       shareProcessNamespace: true
@@ -37,11 +38,6 @@ spec:
           image: {{ .Values.containerSidecar.image }}
           imagePullPolicy: IfNotPresent
           env:
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.releaseNameDB }}-postgresql
-                  key: password
             {{- if .Values.minio.enabled }}
             - name: MINIO_SERVER_USER
               valueFrom:
@@ -65,12 +61,9 @@ spec:
             - name: DEPLOYMENT_TYPE
               value: deployment
           args:
-            - --monitoring-options={{ .Values.configMap.processName }}={{ join "," .Values.configMap.mountPaths }}
+            - --monitoring-options={{ .Values.configMap.processName }}={{$mp}}
+            - --process-image={{ .Values.configMap.processName }}={{ .Values.container.image }}
             - --verbose={{ .Values.configMap.verbose }}
-            - --db-host={{ .Values.releaseNameDB }}-postgresql
-            - --db-port={{ .Values.db.port }}
-            - --db-name={{ .Values.db.database }}
-            - --db-user={{ .Values.db.username }}
             {{- if .Values.configMap.splunk.enabled }}
             - --splunk-enabled={{ .Values.configMap.splunk.enabled }}
             - --splunk-url={{ .Values.configMap.splunkUrl }}
@@ -85,7 +78,7 @@ spec:
             {{- end }}
             {{- if .Values.minio.enabled }}
             - --minio-enabled={{ .Values.minio.enabled }}
-            - --minio-host='{{ .Values.minio.server.host }}:{{ .Values.minio.server.port }}'
+            - "--minio-host={{ .Values.minio.server.host }}:{{ .Values.minio.server.port }}"
             {{- end }}
           resources:
             limits:
@@ -105,3 +98,10 @@ spec:
                 - SYS_PTRACE
           stdin: true
           tty: true
+          volumeMounts:
+            - name: checksums
+              mountPath: /checksums
+      volumes:
+        - name: checksums
+          configMap:
+            name: {{ .Release.Name }}-checksums

@@ -14,7 +14,7 @@ func TestChanWalkDir(t *testing.T) {
 	log := logrus.New()
 
 	dirName, _ := filepath.Abs("./")
-	fileC := ChanWalkDir(ctx, dirName, log)
+	fileC := ChanWalkDir(ctx, []string{dirName}, log)
 
 	for v := range fileC {
 		log.Infof("file: %s", v)

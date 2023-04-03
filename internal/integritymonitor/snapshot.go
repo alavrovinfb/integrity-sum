@@ -53,7 +53,7 @@ func HashDir(rootPath, pathToMonitor, alg string) []worker.FileHash {
 	log := logrus.StandardLogger()
 	fileHachC := worker.WorkersPool(
 		runtime.NumCPU(),
-		walker.ChanWalkDir(ctx, rootPath+pathToMonitor, log),
+		walker.ChanWalkDir(ctx, []string{rootPath + pathToMonitor}, log),
 		worker.NewWorker(ctx, alg, log),
 	)
 

@@ -23,7 +23,7 @@ configMap:
   name: integrity-sum-config
   verbose: debug
   processName: nginx # Container process name
-  mountPaths: # Paths to monitoring
+  monitoringPaths: # Paths to monitoring
     - etc/nginx
     - usr/bin
   splunk:
@@ -38,14 +38,6 @@ configMap:
     proto: "tcp"
   liveness:
     appName: integritySum
-
-releaseNameDB: ""
-
-# The DB connection data. Should be overridden by actual values
-db:
-  port: 5432
-  database: ""
-  username: ""
 
 # The MinIO connection data. It assumes that the MinIO server is running on and
 # properly configured.

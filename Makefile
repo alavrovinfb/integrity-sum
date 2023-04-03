@@ -1,6 +1,5 @@
 VERSION_MOCKGEN := v1.6.0
 ## You can change these values
-RELEASE_NAME_DB     ?= db
 RELEASE_NAME_APP    := app
 RELEASE_NAME_SYSLOG := rsyslog
 
@@ -35,7 +34,6 @@ GOBUILD         := $(BUILDER) go build $(GO_BUILD_FLAGS)
 GOTEST          := $(BUILDER) go test -v
 
 # helm chart path
-HELM_CHART_DB       := helm-charts/database-to-integrity-sum
 HELM_CHART_APP      := helm-charts/app-to-monitor
 HELM_CHART_SYSLOG   := helm-charts/rsyslog
 
@@ -108,21 +106,9 @@ docker:
 	@docker build -t $(FULL_IMAGE_NAME) -t $(IMAGE_NAME):latest -f ./docker/Dockerfile .
 
 .PHONY : helm-all
-helm-all: helm-database helm-app
-
-helm-database:
-	@helm upgrade -i ${RELEASE_NAME_DB} \
-		--set global.postgresql.auth.database=$(DB_NAME) \
-		--set global.postgresql.auth.username=$(DB_USER) \
-		--set global.postgresql.auth.password=$(DB_PASSWORD) \
-		$(HELM_CHART_DB)
-
+helm-all: helm-app
 helm-app:
 	@helm upgrade -i ${RELEASE_NAME_APP} \
-		--set releaseNameDB=$(RELEASE_NAME_DB) \
-		--set db.database=$(DB_NAME) \
-		--set db.username=$(DB_USER) \
-		--set db.password=$(DB_PASSWORD) \
 		--set containerSidecar.name=$(IMAGE_NAME) \
 		--set containerSidecar.image=$(FULL_IMAGE_NAME) \
 		--set configMap.syslog.enabled=$(SYSLOG_ENABLED) \
@@ -135,15 +121,6 @@ helm-syslog:
 .PHONY: kind-load-images
 kind-load-images:
 	@kind load docker-image $(FULL_IMAGE_NAME)
-
-DB_PVC_NAME=$(shell kubectl get pvc | grep data-$(RELEASE_NAME_DB)-postgresql | cut -d " " -f1)
-
-.PHONY: purge-db uninstall-db
-purge-db: uninstall-db
-	@-kubectl delete pvc $(DB_PVC_NAME)
-
-uninstall-db:
-	@-helm uninstall ${RELEASE_NAME_DB}
 
 .PHONY : tidy
 tidy: ## Cleans the Go module.
@@ -161,7 +138,6 @@ run: build
 ## Remove an installed Helm deployment and stop minikube.
 stop:
 	helm uninstall ${RELEASE_NAME_APP}
-	helm uninstall ${RELEASE_NAME_DB}
 	minikube stop
 
 ## Cleaning build cache.
