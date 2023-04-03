@@ -296,7 +296,10 @@ USER message consists from key=value pairs
   - `00001` - "file content mismatch"
   - `00002` - "new file found"
   - `00003` - "file deleted"
+  - `00004` - "heartbeat event"
 - service=\<service name\>, monitoring service name e.g. `service=nginx`
+- pod=app-nginx-integrity-579665544d-sh65t, monitoring pod name
+- image=nginx:stable-alpine3.17, application image
 - namespace=\<namespace name\>, pod namespace
 - cluster=\<cluster name\>, service cluster name
 - message=\<event message\>, e.g. `message=Restart deployment`
@@ -305,13 +308,15 @@ USER message consists from key=value pairs
   - `file content mismatch`
   - `new file found`
   - `file deleted`
+  - `heartbeat event`
 
 Message examples from syslog:
 
 ```log
-Mar 20 13:56:17 nginx-webhook-c74fc7b97-92n7k integrity-monitor[69]: time=Mar 20 13:56:17 event-type=0001 service=nginx namespace=default cluster=dev message=Restart deployment nginx-webhook file=/proc/46/root/etc/nginx/nginx.conf reason=file content mismatch
-Mar 20 14:08:50 nginx-webhook-755ff64f94-5bclh integrity-monitor[47]: time=Mar 20 14:08:50 event-type=0001 service=nginx namespace=default cluster=dev message=Restart deployment nginx-webhook file=/proc/46/root/etc/nginx/qqqqq reason=new file found
-Mar 20 14:10:23 nginx-webhook-86f7cf989c-5pszt integrity-monitor[47]: time=Mar 20 14:10:23 event-type=0001 service=nginx namespace=default cluster=dev message=Restart deployment nginx-webhook file=/proc/46/root/etc/nginx/nginx.conf reason=file deleted
+Mar 31 10:46:19 app-nginx-integrity.default integrity-monitor[47]: time=Mar 31 10:46:19 event-type=0001 service=nginx pod=app-nginx-integrity-6bf9c6f4dd-xbvsp image=nginx:stable-alpine3.17 namespace=default cluster=local message=Restart pod app-nginx-integrity-6bf9c6f4dd-xbvsp file=etc/nginx/conf.d/default.conf reason=file content mismatch
+Mar 31 11:02:26 app-nginx-integrity.default integrity-monitor[47]: time=Mar 31 11:02:26 event-type=0002 service=nginx pod=app-nginx-integrity-6bf9c6f4dd-rr7k6 image=nginx:stable-alpine3.17 namespace=default cluster=local message=Restart pod app-nginx-integrity-6bf9c6f4dd-rr7k6 file=etc/nginx/nfile reason=new file found
+Mar 31 11:20:31 app-nginx-integrity.default integrity-monitor[69]: time=Mar 31 11:20:31 event-type=0003 service=nginx pod=app-nginx-integrity-6bf9c6f4dd-6t6rb image=nginx:stable-alpine3.17 namespace=default cluster=local message=Restart pod app-nginx-integrity-6bf9c6f4dd-6t6rb file=etc/nginx/nginx.conf reason=file deleted
+Mar 31 11:25:10 app-nginx-integrity.default integrity-monitor[69]: time=Mar 31 11:25:10 event-type=0004 service=integrity-monitor pod=app-nginx-integrity-579665544d-sh65t image= namespace=default cluster=local message=health check file= reason=heartbeat event
 ```
 
 Note: `<PRI>` - is not shown up in syslog server logs.

@@ -37,6 +37,7 @@ type DeploymentData struct {
 	Timestamp      string
 	NameDeployment string
 	ReleaseName    string
+	NameSpace      string
 }
 
 type KubeClient struct {
@@ -121,6 +122,7 @@ func (ks *KubeClient) GetDataFromDeployment() (*DeploymentData, error) {
 		NamePod:        kubeData.PodName,
 		Timestamp:      fmt.Sprintf("%v", allDeploymentData.CreationTimestamp),
 		NameDeployment: kubeData.TargetName,
+		NameSpace:      kubeData.Namespace,
 	}
 
 	for _, v := range allDeploymentData.Spec.Template.Spec.Containers {

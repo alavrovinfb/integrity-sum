@@ -1,9 +1,9 @@
 package integritymonitor
 
 const (
-	ErrTypeNewFile int = iota
+	ErrTypeFileMismatch int = iota + 1
+	ErrTypeNewFile
 	ErrTypeFileDeleted
-	ErrTypeFileMismatch
 )
 
 type IntegrityError struct {
