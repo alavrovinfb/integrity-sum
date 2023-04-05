@@ -196,11 +196,10 @@ buildtools:
 # ..will create snapshot for the "app" and "bin" directories of the exported early
 # file system using the SHA512 algorithm.
 
-
 ALG ?= sha256
 ALG := $(shell echo $(ALG) | tr '[:upper:]' '[:lower:]')
 
-DOCKER_FS_DIR	:= $(BIN)/docker-fs
+DOCKER_FS_DIR := $(BIN)/docker-fs
 SNAPSHOT_DIR  := helm-charts/snapshot/files
 
 ifneq (,$(IMAGE_EXPORT))
@@ -214,12 +213,12 @@ ifeq (export-fs,$(firstword $(MAKECMDGOALS)))
 endif
 
 .PHONY: export-fs
-export-fs: ensure-export-dir clear-snapshot
+export-fs: ensure-export-dir clear-snapshots
 	@docker export $(CID) | tar -xC $(DOCKER_FS_DIR) && docker rm $(CID) > /dev/null 2>&1 && \
 	echo exported to $(DOCKER_FS_DIR)
 
 .PHONY: snapshot
-snapshot:
+snapshot: ensure-snapshot-dir
 	@go run ./cmd/snapshot --root-fs="$(DOCKER_FS_DIR)" --dir '$(DIRS)' --algorithm $(ALG) --out $(SNAPSHOT_OUTPUT) && \
 	echo created $(SNAPSHOT_OUTPUT) && \
 	cat $(SNAPSHOT_OUTPUT)
@@ -228,9 +227,13 @@ snapshot:
 ensure-export-dir:
 	@mkdir -p $(DOCKER_FS_DIR)
 
-.PHONY: clear-snapshot
-clear-snapshot:
-	@-rm -rf $(DOCKER_FS_DIR)/* $(SNAPSHOT_OUTPUT)
+.PHONY: ensure-snapshot-dir
+ensure-snapshot-dir:
+	@mkdir -p $(SNAPSHOT_DIR)
+
+.PHONY: clear-snapshots
+clear-snapshots:
+	@-rm -rf $(DOCKER_FS_DIR)/* $(SNAPSHOT_DIR)/*
 
 RELEASE_NAME_SNAPSHOT   ?= snapshot-crd
 HELM_CHART_SNAPSHOT     := helm-charts/snapshot
