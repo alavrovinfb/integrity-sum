@@ -47,7 +47,7 @@ type KubeClient struct {
 
 var kubeData *KubeData
 
-// initKubeData initializes kubeData global variable
+// InitKubeData initializes kubeData global variable
 func InitKubeData() {
 	log := logger.Init(viper.GetString("verbose"))
 	namespaceBytes, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
