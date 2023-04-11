@@ -149,26 +149,26 @@ func integrityCheckFailed(
 	kubeClient *k8s.KubeClient,
 	procName string,
 ) {
-	l := log.WithError(err)
-	var mPath string
-	var integrityError *IntegrityError
+	log.WithError(err).Error("check integrity failed")
+	var (
+		mPath          string
+		integrityError *IntegrityError
+		alertErr       error
+	)
+
 	if errors.As(err, &integrityError) {
 		mPath = integrityError.Path
-		l = l.WithField("path", integrityError.Path)
+		log.WithField("path", integrityError.Path)
+		alertErr = alerts.Send(alerts.New(fmt.Sprintf("Restart pod %v", deploymentData.NamePod),
+			err.Error(),
+			mPath,
+			procName,
+		))
+		if alertErr != nil {
+			log.WithError(alertErr).Error("Failed send alert")
+		}
+		kubeClient.RestartPod()
 	}
-
-	l.Error("check integrity failed")
-
-	e := alerts.Send(alerts.New(fmt.Sprintf("Restart pod %v", deploymentData.NamePod),
-		err.Error(),
-		mPath,
-		procName,
-	))
-	if e != nil {
-		log.WithError(e).Error("Failed send alert")
-	}
-
-	kubeClient.RestartPod()
 }
 
 func ParseMonitoringOpts(opts string) (map[string][]string, error) {
