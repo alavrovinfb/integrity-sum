@@ -62,33 +62,32 @@ const finalizerName = "controller.snapshot/finalizer"
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	updateStatus := func(ctx context.Context, obj *integrityv1.Snapshot, uploaded bool) error {
-		if obj.Status.IsUploaded != uploaded {
-			obj.Status.IsUploaded = uploaded
-			if err := r.Status().Update(ctx, obj); err != nil {
-				r.Log.Error(err, "unable to update snapshot status", "snapshot", obj.Name)
-				return err
-			}
-			r.Log.V(1).Info("snapshot status has been updated", "snapshot", obj.Name,
-				"IsUploaded", obj.Status.IsUploaded)
+	updateStatus := func(ctx context.Context, obj *integrityv1.Snapshot) error {
+		if err := r.Status().Update(ctx, obj); err != nil {
+			r.Log.Error(err, "unable to update snapshot status", "snapshot", obj.Name)
+			return err
 		}
+		r.Log.V(1).Info("snapshot status has been updated", "snapshot", obj.Name,
+			"IsUploaded", obj.Status.IsUploaded)
 		return nil
 	}
 
-	ms, err := r.minIOStorage(ctx, r.Log)
+	ms, err := r.minIOStorage(ctx)
 	if err != nil {
 		r.Log.Error(err, "unable to get MinIO client")
 		return ctrl.Result{}, err
 	}
 
 	var snapshot integrityv1.Snapshot
-	if err := r.Get(ctx, req.NamespacedName, &snapshot); err != nil {
+	if err = r.Get(ctx, req.NamespacedName, &snapshot); err != nil {
 		if !errors.IsNotFound(err) {
 			r.Log.Error(err, "unable to fetch snapshot")
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	r.Log.V(1).Info("snapshot found", "image", snapshot.Spec.Image,
+	r.Log.V(1).Info("snapshot found",
+		"snapshot", snapshot.Name,
+		"image", snapshot.Spec.Image,
 		"IsUploaded", snapshot.Status.IsUploaded)
 
 	// check that deletion process is started
@@ -105,16 +104,19 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// upload if needed
 	controlHash := md5hash(snapshot.Spec.Base64Hashes)
 	if controlHash != snapshot.Status.ControlHash || !snapshot.Status.IsUploaded {
-		var isUpdated bool
 		if err := r.uploadSnapshot(ctx, ms, snapshot, req); err != nil {
 			r.Log.Error(err, "unable to upload snapshot")
-			_ = updateStatus(ctx, &snapshot, isUpdated)
+			snapshot.Status.IsUploaded = false
+			r.Log.V(1).Info("not uploaded, changing status to false")
+			_ = updateStatus(ctx, &snapshot)
 			return ctrl.Result{}, nil
 		}
-
-		snapshot.Status.ControlHash, isUpdated = controlHash, true
-		_ = updateStatus(ctx, &snapshot, isUpdated)
-		r.Log.V(1).Info("all snapshots uploaded")
+		snapshot.Status.ControlHash, snapshot.Status.IsUploaded = controlHash, true
+		err = updateStatus(ctx, &snapshot)
+		if err != nil {
+			r.Log.Error(err, "unable to update snapshot status", "snapshot", snapshot.Name)
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -151,13 +153,10 @@ func (r *SnapshotReconciler) uploadSnapshot(
 	defer cancel()
 
 	objectName := mstorage.BuildObjectName(req.NamespacedName.Namespace, o.Spec.Image, o.Spec.Algorithm)
-	if err := ms.Save(ctx, mstorage.DefaultBucketName,
-		objectName,
-		[]byte(o.Spec.Base64Hashes),
-	); err != nil {
+	if err := ms.Save(ctx, mstorage.DefaultBucketName, objectName, []byte(o.Spec.Base64Hashes)); err != nil {
 		return err
 	}
-	r.Log.Info("snapshot saved", "objectName", objectName, "IsUploaded", o.Status.IsUploaded)
+	r.Log.Info("snapshot uploaded", "objectName", objectName, "IsUploaded", o.Status.IsUploaded)
 	return nil
 }
 
@@ -183,10 +182,7 @@ var (
 )
 
 // ..initializes the MinIO storage and returns it instance
-func (r *SnapshotReconciler) minIOStorage(
-	ctx context.Context,
-	l logr.Logger,
-) (*mstorage.Storage, error) {
+func (r *SnapshotReconciler) minIOStorage(ctx context.Context) (*mstorage.Storage, error) {
 	minioOnce.Do(func() {
 		// find the secret "minio" in the "minio" namespace
 		secret := &corev1.Secret{}
