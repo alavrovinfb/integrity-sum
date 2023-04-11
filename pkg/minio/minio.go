@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -91,6 +92,7 @@ func NewStorage(log *logrus.Logger) (*Storage, error) {
 			client: client,
 			log:    log,
 		}
+		// client.TraceOn(nil)
 	})
 	return instance, err
 }
@@ -118,11 +120,13 @@ func (s *Storage) Save(ctx context.Context, bucketName, objectName string, data 
 
 // Load loads and returns data from the @bucketName for the @objectName
 func (s *Storage) Load(ctx context.Context, bucketName, objectName string) ([]byte, error) {
+	opts := minio.GetObjectOptions{}
+	opts.Set("Cache-Control", "no-cache")
 	r, err := s.client.GetObject(
 		ctx,
 		bucketName,
 		objectName,
-		minio.GetObjectOptions{},
+		opts,
 	)
 	if err != nil {
 		return nil, fmt.Errorf(MsgFailedLoad, err)
@@ -184,5 +188,5 @@ func (s *Storage) ListBuckets(ctx context.Context) ([]minio.BucketInfo, error) {
 // Returns: namespace/imageName/imageTag.alg
 func BuildObjectName(namespace, image, alg string) string {
 	imageInfo := strings.Split(image, ":")
-	return namespace + "/" + imageInfo[0] + "/" + imageInfo[1] + "." + strings.ToLower(alg)
+	return filepath.Join(namespace, imageInfo[0], imageInfo[1]) + "." + strings.ToLower(alg)
 }
