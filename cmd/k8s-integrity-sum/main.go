@@ -120,10 +120,16 @@ func runCheckIntegrity(ctx context.Context,
 	t := time.NewTicker(viper.GetDuration("duration-time"))
 	for range t.C {
 		for proc, paths := range optsMap {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				log.Info("running a next check loop..")
+			}
+
 			err = integritymonitor.CheckIntegrity(ctx, log, proc, paths, deploymentData, kubeClient)
 			if err != nil {
 				log.WithError(err).Error("failed check integrity")
-				return err
 			}
 		}
 	}
