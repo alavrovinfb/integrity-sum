@@ -1,11 +1,18 @@
 package integritymonitor
 
 import (
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestHashDir(t *testing.T) {
+	pflag.Duration("scan-dir-timeout", 30*time.Second, "timeout for scanning directory while creating hashes")
+	pflag.Parse()
+	viper.BindPFlags(pflag.CommandLine)
+
 	rootPath := "/tmp/testroot/"
 	testDir := "fancydir/"
 	alg := "sha256"
