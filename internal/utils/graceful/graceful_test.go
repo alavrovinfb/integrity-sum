@@ -37,7 +37,6 @@ func TestExecute(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		//time.Sleep(100 * time.Millisecond)
 		assert.True(t, executed, "execute function should be called")
 		assert.True(t, time.Since(start) >= timeout, "execute function should be exited after timeout")
 	}()
