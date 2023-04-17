@@ -509,6 +509,45 @@ It will update manifest for the snapshot CRD, install it to the cluster and then
 Notice:
 Pay attention that this integration test performs on the current/real k8s cluster. The following command will show an information about the current cluster: `kubectl config current-context`.
 
+
+### End-to-end tests
+
+In order to run e2e test the cluster should be created and all test dependency services should be deployed.
+
+#### Deploy dependency services, syslog and minio 
+
+```
+make helm-syslog minio-install
+```
+
+#### Build demo-app, build and deploy snapshot controller
+
+```
+make buildtools build docker crd-controller-build load-images crd-controller-deploy
+```
+#### Note: due to snapshot controller doesn't create Minio bucket, it should be created manually.
+
+Bucket name `integrity`
+
+Minio credential could be obtained using following commands:
+
+```
+export ROOT_USER=$(kubectl get secret --namespace minio minio -o jsonpath="{.data.root-user}" | base64 -d)
+export ROOT_PASSWORD=$(kubectl get secret --namespace minio minio -o jsonpath="{.data.root-password}" | base64 -d)
+```
+
+#### Run e2e tests
+
+```
+make e2etest
+```
+
+#### All in one shot
+
+```
+make helm-syslog minio-install buildtools build docker crd-controller-build load-images crd-controller-deploy e2etest
+```
+
 ## License
 
 This project uses the MIT software license. See [full license file](https://github.com/ScienceSoft-Inc/integrity-sum/blob/main/LICENSE)

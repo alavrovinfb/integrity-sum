@@ -6,11 +6,15 @@ RELEASE_NAME_SYSLOG := rsyslog
 # build configuration options
 SYSLOG_ENABLED  ?= false
 BEE2_ENABLED    ?= false
+DURATION_TIME   ?= 25s
+MINIO_ENABLED   ?= false
 
 GIT_COMMIT      := $(shell git describe --tags --long --dirty=-unsupported --always || echo pre-commit)
 IMAGE_VERSION   ?= $(GIT_COMMIT)
 
 BIN             := bin
+ENVTEST         := $(CUR_DIR)/$(BIN)/setup-envtest
+GINKGO          := $(CUR_DIR)/$(BIN)/ginkgo
 BINARY          := $(BIN)/integritySum
 IMAGE_NAME      ?= integrity
 FULL_IMAGE_NAME := $(IMAGE_NAME):$(IMAGE_VERSION)
@@ -112,11 +116,13 @@ helm-app:
 		--set containerSidecar.name=$(IMAGE_NAME) \
 		--set containerSidecar.image=$(FULL_IMAGE_NAME) \
 		--set configMap.syslog.enabled=$(SYSLOG_ENABLED) \
-		$(HELM_CHART_APP)
+		--set configMap.durationTime=$(DURATION_TIME) \
+		--set minio.enabled=$(MINIO_ENABLED) \
+		$(HELM_CHART_APP) --wait
 
 helm-syslog:
 	@helm upgrade -i ${RELEASE_NAME_SYSLOG} \
-		$(HELM_CHART_SYSLOG)
+		$(HELM_CHART_SYSLOG) --wait
 
 .PHONY: kind-load-images
 kind-load-images:
@@ -257,3 +263,35 @@ crd-controller-deploy:
 .PHONY: crd-controller-test
 crd-controller-test:
 	$(CRD_MAKE) manifests generate install test
+
+.PHONY: envtest
+envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
+$(ENVTEST): $(BIN)
+	test -s $(BIN)/setup-envtest || GOBIN=$(CUR_DIR)/$(BIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: ginkgo
+ginkgo: $(GINKGO) ## Download ginkgo locally if necessary.
+$(GINKGO): $(BIN)
+	test -s $(BIN)/ginkgo || GOBIN=$(CUR_DIR)/$(BIN) go install github.com/onsi/ginkgo/v2/ginkgo@latest
+
+.PHONY: minio-install
+minio-install:
+	echo "Install Minio server"
+	helm repo add bitnami https://charts.bitnami.com/bitnami
+	helm repo update
+	helm upgrade -i minio --namespace=minio bitnami/minio --create-namespace \
+ 		--set defaultBuckets=integrity \
+ 		--wait
+
+.PHONY: load-images
+load-images:
+	minikube image load $(FULL_IMAGE_NAME) controller:latest
+
+.PHONY: install-test-cr
+install-test-cr:
+	@helm upgrade -i test-cr e2e/chart/snapshot --wait
+
+.PHONY: e2etest
+e2etest: install-test-cr envtest ginkgo
+	make helm-app SYSLOG_ENABLED=true DURATION_TIME=2s MINIO_ENABLED=true
+	$(BIN)/ginkgo -v ./e2e/...

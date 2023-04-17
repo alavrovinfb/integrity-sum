@@ -1,7 +1,7 @@
 # Container image variables
 container:
   name: nginx # Container name
-  image: nginx:latest # Container image that you deploy to the cluster
+  image: nginx:1.24.0 # Container image that you deploy to the cluster
 
 containerSidecar:
   name: integrity # Container name
@@ -24,7 +24,7 @@ configMap:
   verbose: debug
   processName: nginx # Container process name
   monitoringPaths: # Paths to monitoring
-    - etc/nginx
+    - bin
     - usr/bin
   splunk:
     enabled: false
@@ -36,6 +36,7 @@ configMap:
     host: "rsyslog"
     port: "514"
     proto: "tcp"
+  durationTime: 25s
   liveness:
     appName: integritySum
 
