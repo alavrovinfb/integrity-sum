@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	integrityv1 "integrity/snapshot/api/v1"
 	"os/exec"
 	"strconv"
 	"testing"
@@ -39,9 +38,11 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
 	//+kubebuilder:scaffold:imports
 
 	mstorage "github.com/ScienceSoft-Inc/integrity-sum/pkg/minio"
+	integrityv1 "github.com/ScienceSoft-Inc/integrity-sum/snapshot-controller/api/v1"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to

@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
-	integrityv1 "integrity/snapshot/api/v1"
 	"sync"
 	"time"
 
@@ -36,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	mstorage "github.com/ScienceSoft-Inc/integrity-sum/pkg/minio"
+	integrityv1 "github.com/ScienceSoft-Inc/integrity-sum/snapshot-controller/api/v1"
 )
 
 // SnapshotReconciler reconciles a Snapshot object
