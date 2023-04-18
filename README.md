@@ -437,7 +437,7 @@ Example: `helm-charts/snapshot/files/integrity:latest.sha256`.
 
 ## Uploading a snapshot data to MinIO
 
-Reuired:
+Required:
 
 * generated with previous steps snapshot file(s)
 * installed CRD for snapshot (see the [next](#create--install-snapshot-crd-and-k8s-controller-for-it) section)
