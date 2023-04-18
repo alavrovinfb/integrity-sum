@@ -1,0 +1,29 @@
+{{- range $path, $_ :=  (.Files.Glob "files/*:*.*") }}
+{{- $data := $.Files.Get $path | b64enc }}
+{{- $fileName := base $path }}
+{{- $fileExt := ext $fileName }}
+{{- $alg := $fileExt | trimPrefix "." }}
+{{- $image := trimSuffix $fileExt $fileName }}
+{{- $imageParts := splitn ":" 2 $image }}
+{{- $name := printf "%s-%s-%s-%s" $.Values.namePrefix $imageParts._0 $imageParts._1 $alg}}
+---
+apiVersion: integrity.snapshot/v1
+kind: Snapshot
+metadata:
+  labels:
+    app.kubernetes.io/name: snapshot
+    app.kubernetes.io/instance: {{ $name }}
+    app.kubernetes.io/part-of: crd
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: crd
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  finalizers:
+{{- range $.Values.finalizers}}
+  - {{ .  }}
+{{- end }}
+spec:
+  image: {{ $image | quote}}
+  hashes: {{ $data }}
+  algorithm: {{ $alg }}
+{{- end }}

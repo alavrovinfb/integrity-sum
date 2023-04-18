@@ -1,0 +1,3 @@
+namePrefix: snapshot
+finalizers:
+- controller.snapshot/finalizer

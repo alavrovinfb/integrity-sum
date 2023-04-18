@@ -19,8 +19,8 @@ package controllers
 import (
 	"context"
 	"crypto/md5"
+	"encoding/base64"
 	"fmt"
-	integrityv1 "integrity/snapshot/api/v1"
 	"sync"
 	"time"
 
@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	mstorage "github.com/ScienceSoft-Inc/integrity-sum/pkg/minio"
+	integrityv1 "github.com/ScienceSoft-Inc/integrity-sum/snapshot-controller/api/v1"
 )
 
 // SnapshotReconciler reconciles a Snapshot object
@@ -153,10 +154,16 @@ func (r *SnapshotReconciler) uploadSnapshot(
 	defer cancel()
 
 	objectName := mstorage.BuildObjectName(req.NamespacedName.Namespace, o.Spec.Image, o.Spec.Algorithm)
-	if err := ms.Save(ctx, mstorage.DefaultBucketName, objectName, []byte(o.Spec.Base64Hashes)); err != nil {
+	decodedHashes, err := base64.StdEncoding.DecodeString(o.Spec.Base64Hashes)
+	if err != nil {
+		return err
+	}
+
+	if err := ms.Save(ctx, mstorage.DefaultBucketName, objectName, decodedHashes); err != nil {
 		return err
 	}
 	r.Log.Info("snapshot uploaded", "objectName", objectName, "IsUploaded", o.Status.IsUploaded)
+
 	return nil
 }
 

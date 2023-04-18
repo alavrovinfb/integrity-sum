@@ -94,7 +94,11 @@ func compareHashes(
 		}
 
 		ms := minio.Instance()
-		csFile := process.CheckSumFile(procName, algName)
+		csFile, err := process.CheckSumFile(procName, algName)
+		if err != nil {
+			errC <- fmt.Errorf("failed getting check sum file name: %w", err)
+			return
+		}
 		log.Infof("getting check sums file %s", csFile)
 		hashData, err := ms.Load(ctx, viper.GetString("minio-bucket"), csFile)
 		if err != nil {

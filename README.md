@@ -437,7 +437,7 @@ Example: `helm-charts/snapshot/files/integrity:latest.sha256`.
 
 ## Uploading a snapshot data to MinIO
 
-Reuired:
+Required:
 
 * generated with previous steps snapshot file(s)
 * installed CRD for snapshot (see the [next](#create--install-snapshot-crd-and-k8s-controller-for-it) section)
@@ -494,7 +494,7 @@ You may find more specific targets for the CRD & it controller in the  appropria
 
 Requirements:
 
-* configured access to k8s cluster with installed and run MinIO service which will be used to store the snapshot data from the test CRD sample.
+* configured access to k8s cluster with installed and run MinIO service which will be used to store the snapshot data from the test CR sample.
 * placement of the MinIO service is hardcoded now to the `minio` namespace and `minio` service values. These values are used to find the MinIO credentials in the cluster and to perform port-forwarding to access the MinIO service and verify the data stored in it during the test.
 * the snapshot controller should not be deployed on the cluster (we will test our code instead).
 
@@ -508,6 +508,45 @@ It will update manifest for the snapshot CRD, install it to the cluster and then
 
 Notice:
 Pay attention that this integration test performs on the current/real k8s cluster. The following command will show an information about the current cluster: `kubectl config current-context`.
+
+
+### End-to-end tests
+
+In order to run e2e test the cluster should be created and all test dependency services should be deployed.
+
+#### Deploy dependency services, syslog and minio 
+
+```
+make helm-syslog minio-install
+```
+
+#### Build demo-app, build and deploy snapshot controller
+
+```
+make buildtools build docker crd-controller-build load-images crd-controller-deploy
+```
+#### Note: bucket can be created manually.
+
+Bucket name `integrity`
+
+Minio credential could be obtained using following commands:
+
+```
+export ROOT_USER=$(kubectl get secret --namespace minio minio -o jsonpath="{.data.root-user}" | base64 -d)
+export ROOT_PASSWORD=$(kubectl get secret --namespace minio minio -o jsonpath="{.data.root-password}" | base64 -d)
+```
+
+#### Run e2e tests
+
+```
+make e2etest
+```
+
+#### All in one shot
+
+```
+make helm-syslog minio-install buildtools build docker crd-controller-build load-images crd-controller-deploy e2etest
+```
 
 ## License
 

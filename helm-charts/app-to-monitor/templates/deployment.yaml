@@ -80,6 +80,7 @@ spec:
             - --minio-enabled={{ .Values.minio.enabled }}
             - "--minio-host={{ .Values.minio.server.host }}:{{ .Values.minio.server.port }}"
             {{- end }}
+            - --duration-time={{ .Values.configMap.durationTime | default "25s"}}
           resources:
             limits:
               cpu: "1"

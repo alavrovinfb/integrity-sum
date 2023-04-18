@@ -32,8 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	integrityv1 "integrity/snapshot/api/v1"
-	"integrity/snapshot/controllers"
+	integrityv1 "github.com/ScienceSoft-Inc/integrity-sum/snapshot-controller/api/v1"
+	"github.com/ScienceSoft-Inc/integrity-sum/snapshot-controller/controllers"
 
 	//+kubebuilder:scaffold:imports
 	_ "github.com/ScienceSoft-Inc/integrity-sum/pkg/minio"
