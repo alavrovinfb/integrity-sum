@@ -494,7 +494,7 @@ You may find more specific targets for the CRD & it controller in the  appropria
 
 Requirements:
 
-* configured access to k8s cluster with installed and run MinIO service which will be used to store the snapshot data from the test CRD sample.
+* configured access to k8s cluster with installed and run MinIO service which will be used to store the snapshot data from the test CR sample.
 * placement of the MinIO service is hardcoded now to the `minio` namespace and `minio` service values. These values are used to find the MinIO credentials in the cluster and to perform port-forwarding to access the MinIO service and verify the data stored in it during the test.
 * the snapshot controller should not be deployed on the cluster (we will test our code instead).
 
