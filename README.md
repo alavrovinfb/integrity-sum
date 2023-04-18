@@ -525,7 +525,7 @@ make helm-syslog minio-install
 ```
 make buildtools build docker crd-controller-build load-images crd-controller-deploy
 ```
-#### Note: due to snapshot controller doesn't create Minio bucket, it should be created manually.
+#### Note: bucket can be created manually.
 
 Bucket name `integrity`
 
