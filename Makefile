@@ -58,28 +58,9 @@ endif
 TAGS_JOINED := $(call join-with,$(COMMA),$(TAGLIST))
 TAGS        := $(if $(strip $(TAGS_JOINED)),-tags $(TAGS_JOINED),)
 
-## Runs all of the required cleaning and verification targets.
-.PHONY : all
-all: mod-download test dev-dependencies
-
-## Downloads the Go module.
-.PHONY : mod-download
-mod-download:
-	@echo "==> Downloading Go module"
-	go mod download
-
-## Generates folders with mock functions
-.PHONY : generate
-generate:
-	go install github.com/golang/mock/mockgen@${VERSION_MOCKGEN}
-	export PATH=$PATH:$(go env GOPATH)/bin
-	go generate ./internal/core/ports/repository.go
-	go generate ./internal/core/ports/service.go
-	@echo "==> Mocks have been generated"
-
 ## Runs the test suite with mocks enabled.
 .PHONY: test
-test: generate test-bee2 tminio
+test: test-bee2 tminio
 	@$(GOTEST) -timeout 5s \
 	 	./pkg/hasher \
 		./internal/walker \
@@ -272,7 +253,7 @@ $(ENVTEST): $(BIN)
 .PHONY: ginkgo
 ginkgo: $(GINKGO) ## Download ginkgo locally if necessary.
 $(GINKGO): $(BIN)
-	test -s $(BIN)/ginkgo || GOBIN=$(CUR_DIR)/$(BIN) go install github.com/onsi/ginkgo/v2/ginkgo@latest
+	test -s $(BIN)/ginkgo || GOBIN=$(CUR_DIR)/$(BIN) go install github.com/onsi/ginkgo/v2/ginkgo@2.9.2
 
 .PHONY: minio-install
 minio-install:

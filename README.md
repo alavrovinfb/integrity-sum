@@ -35,7 +35,6 @@ integrity-sum injects a `hasher-sidecar` to your pods as a sidecar container.
     * [Statechart diagram](#statechart-diagram)
   * [Getting Started](#getting-started)
     * [Clone repository and install dependencies](#clone-repository-and-install-dependencies)
-  * [Demo-App](#demo-app)
   * [:hammer: Installing components](#hammer-installing-components)
     * [Running locally](#running-locally)
     * [Install Helm](#install-helm)
@@ -84,31 +83,6 @@ Download the named modules into the module cache
 go mod download
 ```
 
-## Demo-App
-
-You can test this application in your CLI — Command Line Interface on local files and folders.
-You can use it with option(flags) like:
-
-1) **`-d`** (path to dir):
-
-```
-go run cmd/demo-app/main.go -d ./..
-```
-
-2) **`-a`** (hash algorithm):
-
-```
-go run cmd/demo-app/main.go -a sha256
-go run cmd/demo-app/main.go -a SHA256
-go run cmd/demo-app/main.go -a SHA256 -d ./..
-```
-
-3) **`-h`** (options docs):
-
-```
-go run cmd/demo-app/main.go -h
-```
-
 ## :hammer: Installing components
 
 ### Running locally
@@ -123,44 +97,7 @@ Example <https://minikube.sigs.k8s.io/docs/start/>
 Before using helm charts you need to install helm on your local machine.
 You can find the necessary installation information at this link <https://helm.sh/docs/intro/install/>
 
-### Configuration
-
-To work properly, you first need to set the configuration files:
-
-* environmental variables in the `.env` file
-* values in the file `helm-charts/database-to-integrity-sum/values.yaml`
-* values in the file `helm-charts/app-to-monitor/values.yaml`
-
-## Quick start
-
-### Using Makefile
-
-You can use make function.
-Runs all necessary cleaning targets and dependencies for the project:
-
-```
-make all
-```
-
-Remove an installed Helm deployments and stop minikube:
-
-```
-make stop
-```
-
-Building and running the project on a local machine:
-
-```
-make run
-```
-
-If you want to generate binaries for different platforms:
-
-```
-make compile
-```
-
-### Manual start
+## Run application
 
 First of all, get a build image with `make buildtools`. It will be used to compile source code (Go & C/C++).
 
@@ -168,6 +105,8 @@ optional:
 
 * SYSLOG_ENABLED=true, if syslog functionality is required;
 * BEE2_ENABLED=true, if bee2 hash algorithm is required.
+
+Populate vendors: `go mod vendor`
 
 Build app: `make build`
 
@@ -185,8 +124,14 @@ make docker
 
 If you use `kind` instead of `minikube`, you may do `make kind-load-images` to preload image.
 
-This command installs a chart archive.
+Need to install dependencies:
 
+* [Enable MinIO](#enable-minio)
+* [Create \& install snapshot CRD and k8s controller for it](#create--install-snapshot-crd-and-k8s-controller-for-it)
+* [Creating a snapshot of a docker image file system](#creating-a-snapshot-of-a-docker-image-file-system)
+* [Uploading a snapshot data to MinIO](#uploading-a-snapshot-data-to-minio)
+
+This command installs a chart archive.
 ```
 helm install `release name` `path to a packaged chart`
 ```
@@ -195,48 +140,11 @@ There are some predefined targets in the Makefile for deployment:
 
 * Install helm chart with app
 
-    ```
-    make helm-app
-    ```
-
-## Pay attention
-
-If you want to use a hasher-sidecar, then you need to specify the following data in your deployment:
-Pod annotations:
-
-* `integrity-monitor.scnsoft.com/inject: "true"` - The sidecar injection annotation. If true, sidecar will be injected.
-* `<monitoring process name>.integrity-monitor.scnsoft.com/monitoring-paths: etc/nginx,usr/bin` - This annotation introduces a process to be monitored and specifies its paths.
-Annotation prefix should be the process name for instance `nginx`, `nginx.integrity-monitor.scnsoft.com/monitoring-paths`
-Service account:
-* `template:spec:serviceAccountName:` api-version-`hasher`
-Share process namespace should be enabled.
-* `template:shareProcessNamespace: true`
-
-## Troubleshooting
-
-Sometimes you may find that pod is injected with sidecar container as expected, check the following items:
-
-1) The pod is in running state with `integrity` sidecar container injected and no error logs.
-2) Check if the application pod has the correct annotations as described above.
-
+```
+make helm-app
+```
 ___________________________
-
-## :notebook_with_decorative_cover: Godoc extracts and generates documentation for Go programs
-
-#### Presents the documentation as a web page
-
-```go
-godoc -http=:6060/integritySum
-go doc packge.function_name
-```
-
-for example
-
-```go
-go doc pkg/api.Result
-```
-
-## :mag: Running tests
+## :mag: Running unit tests
 
 First of all you need to install mockgen:
 
@@ -244,46 +152,12 @@ First of all you need to install mockgen:
 go install github.com/golang/mock/mockgen@${VERSION_MOCKGEN}
 ```
 
-Generate a mock:
-
-```
-go generate ./internal/core/ports/repository.go
-go generate ./internal/core/ports/service.go
-```
-
-or
-
-```
-make generate
-```
-
-You need to go to the folder where the file is located *_test.go and run the following command:
-
-```go
-go test -v
-```
-
-for example
-
-```go
-cd ../pkg/api
-go test -v
-```
-
-or
-
-```
-go test -v ./...
-```
-
-or
-
 ```
 make test
 ```
 
 ## :mag: Running linter "golangci-lint"
-
+See [here](https://golangci-lint.run/usage/install/) how to install "golangci-lint".
 ```
 golangci-lint run
 ```
@@ -303,9 +177,8 @@ The code was tested with default `bitnami/minio` helm chart.
 
 The following code will create the `minio` namespace and install a default MinIO server into it.
 
-```bash
-kubectl create ns minio
-helm install minio --namespace=minio bitnami/minio
+```make
+make minio-install
 ```
 
 Refer to the original documentation [Bitnami Object Storage based on MinIO®](https://hub.docker.com/r/bitnami/minio/) for more details.
@@ -473,11 +346,18 @@ Finally, the snapshot controller will read the data from CRD(s) and upload it to
 With delete action on CRD the corresponding data from the MinIO server will be deleted as well.
 
 ## Create & install snapshot CRD and k8s controller for it
-
+Need to populate vendors in folder "snapshot-controller" at first time:
+```
+go mod vendor
+```
 To create CRD related manifests and build the controller image for it use the following command:
 
 ```make
 make crd-controller-build
+```
+If you use minikube you need to load images in minikube:
+```
+make load-images
 ```
 
 To install the snapshot CRD and deploy it controller on the cluster use the following command:
