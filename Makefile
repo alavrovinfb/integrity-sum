@@ -60,7 +60,7 @@ TAGS        := $(if $(strip $(TAGS_JOINED)),-tags $(TAGS_JOINED),)
 
 ## Runs the test suite with mocks enabled.
 .PHONY: test
-test: test-bee2 tminio unit-tests
+test: test-bee2 unit-tests tminio
 	@$(GOTEST) -timeout 5s \
 	 	./pkg/hasher \
 		./internal/walker \
