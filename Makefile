@@ -86,8 +86,15 @@ dev-dependencies: minikube update docker helm-all
 minikube:
 	minikube start
 
+# Downloads the Go module.
+.PHONY : vendor
+vendor:
+	@echo "==> Downloading vendor"
+	go mod tidy
+	go mod vendor
+
 .PHONY: docker
-docker:
+docker: vendor
 	@docker build -t $(FULL_IMAGE_NAME) -t $(IMAGE_NAME):latest -f ./docker/Dockerfile .
 
 .PHONY : helm-all
