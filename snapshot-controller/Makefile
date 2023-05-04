@@ -58,10 +58,17 @@ vet: ## Run go vet against code.
 test: envtest ginkgo
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(LOCALBIN)/ginkgo -v ./...
 
+##@ Downloads the Go module.
+.PHONY : vendor
+vendor:
+	@echo "==> Downloading vendor"
+	go mod tidy
+	go mod vendor
+
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: vendor manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 .PHONY: run
