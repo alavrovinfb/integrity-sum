@@ -60,7 +60,7 @@ TAGS        := $(if $(strip $(TAGS_JOINED)),-tags $(TAGS_JOINED),)
 
 ## Runs the test suite with mocks enabled.
 .PHONY: test
-test: test-bee2 tminio
+test: test-bee2 unit-tests tminio
 	@$(GOTEST) -timeout 5s \
 	 	./pkg/hasher \
 		./internal/walker \
@@ -75,6 +75,19 @@ endif
 .PHONY: tminio
 tminio:
 	go test -v -timeout 20s ./pkg/minio
+
+.PHONY: unit-tests
+unit-tests:
+	@$(GOTEST) ./internal/data
+	@$(GOTEST) ./internal/integritymonitor
+	@$(GOTEST) ./internal/logger
+	@$(GOTEST) ./internal/utils/graceful
+	@$(GOTEST) ./internal/utils/process
+	@$(GOTEST) ./internal/walker
+	@$(GOTEST) ./internal/worker
+	@$(GOTEST) ./pkg/alerts
+	@$(GOTEST) ./pkg/hasher
+	@$(GOTEST) ./pkg/k8s
 
 ## Downloads the necessesary dev dependencies.
 .PHONY : dev-dependencies
