@@ -8,7 +8,7 @@ import (
 )
 
 // default heartbeat interval 30 min
-const interval = time.Minute * 30
+const interval = time.Minute * 15
 const HeartbeatEvent = "heartbeat event"
 
 type Alert struct {
@@ -58,6 +58,7 @@ func Heartbeat(ctx context.Context, logger *logrus.Logger, alert Alert) {
 		for {
 			select {
 			case <-t.C:
+				alert.Time = time.Now()
 				if err := Send(alert); err != nil {
 					logger.WithField("heartbeat", "send").Error(err)
 				}

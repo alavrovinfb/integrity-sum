@@ -85,7 +85,7 @@ func main() {
 		alerts.Register(syslogSender)
 		log.Info("notification to syslog enabled")
 
-		defer syslogSender.Close()
+		//defer syslogSender.Close()
 	}
 
 	optsMap, err := integritymonitor.ParseMonitoringOpts(viper.GetString("monitoring-options"))
